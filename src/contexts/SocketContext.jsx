@@ -27,7 +27,7 @@ export const SocketProvider = ({ children }) => {
       return
     }
 
-    const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8000'
+    const WS_URL = import.meta.env.VITE_WS_URL || 'https://omnidocteur.ma/api'
     const newSocket = io(WS_URL, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,
