@@ -1,0 +1,331 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Widad API",
+    "version": "1.0.0",
+    "description": "API REST + Socket.IO temps réel pour gestion médicale et sportive.\n\n**Socket.IO (temps réel)**\n\nConnectez-vous à ws://localhost:3000 en Socket.IO.\n\n**Événements écoutables côté client :**\n- userCreated, userUpdated, userDeleted\n- playerCreated, playerUpdated, playerDeleted\n- visitCreated, visitUpdated, visitDeleted, visitValidated\n- certificateCreated, certificateDeleted\n- attachmentUploaded, attachmentDeleted\n- visit_pcmaCreated, visit_pcmaUpdated, visit_pcmaDeleted\n- ... (idem pour tous les modules)\n\nExemple JS :\n```js\nsocket.on('visitCreated', data => { ... });\n```"
+  },
+  "servers": [
+    { "url": "http://localhost:3000" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Player": {
+        "type": "object",
+        "properties": {
+          "first_name": { "type": "string" },
+          "last_name": { "type": "string" },
+          "sex": { "type": "string" },
+          "birth_date": { "type": "string", "format": "date" },
+          "nationality": { "type": "string" },
+          "club": { "type": "string" },
+          "country": { "type": "string" },
+          "position": { "type": "string" },
+          "dominant_foot": { "type": "string" },
+          "height_cm": { "type": "number" },
+          "weight_kg": { "type": "number" },
+          "allergies": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "required": ["first_name", "last_name"]
+      },
+      "Visit": {
+        "type": "object",
+        "properties": {
+          "player_id": { "type": "string" },
+          "visit_date": { "type": "string", "format": "date-time" },
+          "module": { "type": "string" },
+          "created_by": { "type": "string" },
+          "status": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "required": ["player_id", "module"]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string" },
+          "password": { "type": "string" },
+          "first_name": { "type": "string" },
+          "last_name": { "type": "string" },
+          "role": { "type": "string" }
+        },
+        "required": ["email", "password", "first_name", "last_name", "role"]
+      }
+    }
+  },
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "tags": [
+    { "name": "Auth" },
+    { "name": "Users" },
+    { "name": "Players" },
+    { "name": "Visits" },
+    { "name": "Attachments" },
+    { "name": "Certificates" },
+    { "name": "Modules" }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Créer un utilisateur",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Utilisateur créé" },
+          "400": { "description": "Erreur de validation" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Connexion utilisateur",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Token JWT" },
+          "401": { "description": "Identifiants invalides" }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Lister les utilisateurs",
+        "responses": { "200": { "description": "Liste des utilisateurs" } }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Créer un utilisateur",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Utilisateur créé" } }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Obtenir un utilisateur",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Utilisateur" }, "404": { "description": "Non trouvé" } }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Mettre à jour un utilisateur",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Utilisateur mis à jour" } }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Supprimer un utilisateur",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Utilisateur supprimé" } }
+      }
+    },
+    "/players": {
+      "get": {
+        "tags": ["Players"],
+        "summary": "Lister les joueurs",
+        "responses": { "200": { "description": "Liste des joueurs" } }
+      },
+      "post": {
+        "tags": ["Players"],
+        "summary": "Créer un joueur",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Player" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Joueur créé" } }
+      }
+    },
+    "/players/{id}": {
+      "get": {
+        "tags": ["Players"],
+        "summary": "Obtenir un joueur par ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { 
+          "200": { "description": "Joueur trouvé" },
+          "404": { "description": "Joueur non trouvé" }
+        }
+      },
+      "put": {
+        "tags": ["Players"],
+        "summary": "Mettre à jour un joueur",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Player" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Joueur mis à jour" } }
+      },
+      "delete": {
+        "tags": ["Players"],
+        "summary": "Supprimer un joueur",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Joueur supprimé" } }
+      }
+    },
+    "/visits": {
+      "get": {
+        "tags": ["Visits"],
+        "summary": "Lister les visites",
+        "responses": { "200": { "description": "Liste des visites" } }
+      },
+      "post": {
+        "tags": ["Visits"],
+        "summary": "Créer une visite",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Visit" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Visite créée" } }
+      }
+    },
+    "/visits/{id}": {
+      "put": {
+        "tags": ["Visits"],
+        "summary": "Mettre à jour une visite",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Visit" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Visite mise à jour" } }
+      },
+      "delete": {
+        "tags": ["Visits"],
+        "summary": "Supprimer une visite",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Visite supprimée" } }
+      }
+    },
+    "/attachments": {
+      "post": {
+        "tags": ["Attachments"],
+        "summary": "Uploader une pièce jointe",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "visit_id": { "type": "string" },
+                  "uploaded_by": { "type": "string" }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Pièce jointe créée" } }
+      }
+    },
+    "/attachments/{id}/download": {
+      "get": {
+        "tags": ["Attachments"],
+        "summary": "Télécharger une pièce jointe",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Fichier téléchargé" } }
+      }
+    },
+    "/certificates": {
+      "post": {
+        "tags": ["Certificates"],
+        "summary": "Créer un certificat médical",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Certificat créé" } }
+      },
+      "get": {
+        "tags": ["Certificates"],
+        "summary": "Lister les certificats",
+        "responses": { "200": { "description": "Liste des certificats" } }
+      }
+    }
+  }
+}
