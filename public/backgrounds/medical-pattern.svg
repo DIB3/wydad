@@ -1,0 +1,32 @@
+<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.05" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:0.05" />
+    </linearGradient>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e2e8f0" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+    <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#94a3b8" opacity="0.15"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background gradient -->
+  <rect width="1920" height="1080" fill="url(#grad1)"/>
+  
+  <!-- Grid pattern -->
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+  
+  <!-- Dots pattern -->
+  <rect width="1920" height="1080" fill="url(#dots)"/>
+  
+  <!-- Medical icons decorative -->
+  <g opacity="0.03">
+    <path d="M 100 100 L 120 100 L 120 80 L 140 80 L 140 100 L 160 100 L 160 120 L 140 120 L 140 140 L 120 140 L 120 120 L 100 120 Z" fill="#667eea"/>
+    <circle cx="1700" cy="200" r="30" fill="none" stroke="#764ba2" stroke-width="3"/>
+    <path d="M 300 800 Q 320 780 340 800 T 380 800" fill="none" stroke="#667eea" stroke-width="3"/>
+    <rect x="1500" y="800" width="60" height="60" rx="10" fill="none" stroke="#764ba2" stroke-width="2"/>
+  </g>
+</svg>
+
