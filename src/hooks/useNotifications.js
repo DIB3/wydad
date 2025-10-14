@@ -3,7 +3,7 @@ import notificationService from '../services/notification.service'
 import { useAuth } from '../contexts/AuthContext'
 import io from 'socket.io-client'
 
-const SOCKET_URL = 'http://localhost:4000'
+const SOCKET_URL = 'https://omnidocteur.ma/api'
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState([])
