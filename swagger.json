@@ -6,7 +6,7 @@
     "description": "API REST + Socket.IO temps réel pour gestion médicale et sportive.\n\n**Socket.IO (temps réel)**\n\nConnectez-vous à ws://localhost:3000 en Socket.IO.\n\n**Événements écoutables côté client :**\n- userCreated, userUpdated, userDeleted\n- playerCreated, playerUpdated, playerDeleted\n- visitCreated, visitUpdated, visitDeleted, visitValidated\n- certificateCreated, certificateDeleted\n- attachmentUploaded, attachmentDeleted\n- visit_pcmaCreated, visit_pcmaUpdated, visit_pcmaDeleted\n- ... (idem pour tous les modules)\n\nExemple JS :\n```js\nsocket.on('visitCreated', data => { ... });\n```"
   },
   "servers": [
-    { "url": "http://localhost:3000" }
+    { "url": "http://localhost:8000" }
   ],
   "components": {
     "securitySchemes": {

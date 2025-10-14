@@ -5,5 +5,5 @@ const { initSocket } = require('./socket');
 const server = http.createServer(app);
 initSocket(server);
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => console.log(`Serveur sur le port ${PORT}`));
