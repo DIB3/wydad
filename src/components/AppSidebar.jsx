@@ -167,7 +167,7 @@ export function AppSidebar() {
                 <div className="h-0.5 w-6 bg-gradient-to-r from-white to-white/40 rounded-full"></div>
                 <span className="mx-2 text-xs font-bold text-white/90" style={{
                   textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                }}>Dossier Médical</span>
+                }}>By Omnidoc Santé</span>
                 <div className="h-0.5 w-6 bg-gradient-to-r from-white/40 to-white rounded-full"></div>
               </div>
             </div>
@@ -354,10 +354,7 @@ export function AppSidebar() {
         {/* Version info */}
         <div className="mt-3 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">Version 1.0.0</span>
-            <Badge className="bg-gradient-to-r from-[#29BACD] to-[#7BD5E1] text-white text-xs">
-              Pro
-            </Badge>
+            <img src="./cropped-omnidoc-removebg-preview.png" alt="Omnidoc Santé" className="w-42 h-10" />
           </div>
         </div>
       </SidebarFooter>
