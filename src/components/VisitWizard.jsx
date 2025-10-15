@@ -200,7 +200,6 @@ export function VisitWizard() {
           created_by: user.id
         }
         
-        console.log('📝 Création de visite avec données:', visitData)
         
         const createdVisit = await visitService.create(visitData)
         createdVisits.push({ ...createdVisit, moduleId })

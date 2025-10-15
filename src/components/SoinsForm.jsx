@@ -77,9 +77,8 @@ export function SoinsForm({ visitId, playerId, moduleSequence, currentModuleInde
     const cleaned = {}
     Object.keys(data).forEach(key => {
       const value = data[key]
-      if (value === '') {
-        cleaned[key] = null
-      } else if (value !== null && value !== undefined) {
+      // Ne pas inclure les valeurs vides pour éviter les erreurs avec les ENUM
+      if (value !== '' && value !== null && value !== undefined) {
         cleaned[key] = value
       }
     })
@@ -94,6 +93,10 @@ export function SoinsForm({ visitId, playerId, moduleSequence, currentModuleInde
       return
     }
 
+    if (!playerId) {
+      toast.error('ID du joueur manquant - Veuillez sélectionner un joueur')
+      return
+    }
 
     try {
       setLoading(true)
@@ -102,6 +105,7 @@ export function SoinsForm({ visitId, playerId, moduleSequence, currentModuleInde
         player_id: playerId,
         statut: 'valide'
       })
+      
       
       try {
         await soinsService.getByVisitId(visitId)
@@ -118,7 +122,8 @@ export function SoinsForm({ visitId, playerId, moduleSequence, currentModuleInde
       
       handleModuleNavigation({ navigate, moduleSequence, currentModuleIndex, playerId })
     } catch (error) {
-      console.error('Erreur:', error)
+      console.error('❌ [FRONTEND] Erreur:', error)
+      console.error('❌ [FRONTEND] Réponse serveur:', error.response?.data)
       toast.error(error.response?.data?.error || 'Erreur lors de l\'enregistrement')
     } finally {
       setLoading(false)
@@ -128,6 +133,11 @@ export function SoinsForm({ visitId, playerId, moduleSequence, currentModuleInde
   const handleSaveDraft = async () => {
     if (!visitId) {
       toast.error('ID de visite manquant')
+      return
+    }
+
+    if (!playerId) {
+      toast.error('ID du joueur manquant - Veuillez sélectionner un joueur')
       return
     }
 

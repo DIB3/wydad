@@ -4,13 +4,14 @@ import { AppSidebar } from '@/components/AppSidebar'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { GPSForm } from '@/components/GPSForm'
 import { PlayerSelector } from '@/components/PlayerSelector'
-import { ArrowLeft, Navigation, Activity, Map, Target } from 'lucide-react'
+import { ArrowLeft, Navigation, Activity, Map, Target, TrendingUp, Zap, Gauge } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Link, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useVisits } from '../../hooks/useVisits'
 import { usePlayerGPS } from '../../hooks/useGPS'
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 export default function GPSPage() {
   const location = useLocation()
@@ -118,6 +119,165 @@ export default function GPSPage() {
               moduleName="GPS"
               moduleRoute="/modules/gps"
             />
+
+            {/* Graphiques d'analyse - Affichés uniquement si au moins 2 sessions */}
+            {playerId && gpsList.length >= 2 && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                  Analyse GPS
+                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                    {gpsList.length} sessions
+                  </Badge>
+                </h2>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Évolution des distances */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
+                    <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                          <Navigation className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Évolution des distances</CardTitle>
+                          <CardDescription>Distance totale par session</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <AreaChart data={gpsList.map((gps, idx) => ({
+                          session: `S${idx + 1}`,
+                          distance: (gps.distance_m / 1000).toFixed(2),
+                          hid: (gps.hid_m / 1000).toFixed(2)
+                        })).reverse()}>
+                          <defs>
+                            <linearGradient id="distanceGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#10b981" stopOpacity={0.1}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+                          <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
+                          <YAxis className="text-xs" stroke="#64748b" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #10b981',
+                              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                          <Area type="monotone" dataKey="distance" stroke="#10b981" strokeWidth={3} fill="url(#distanceGradient)" name="Distance (km)" />
+                          <Area type="monotone" dataKey="hid" stroke="#059669" strokeWidth={2} fill="transparent" strokeDasharray="5 5" name="HID (km)" />
+                          <Legend />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Vitesses */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                    <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                          <Zap className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Vitesses</CardTitle>
+                          <CardDescription>Vmax et vitesse moyenne</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart data={gpsList.map((gps, idx) => ({
+                          session: `S${idx + 1}`,
+                          vmax: gps.vmax_kmh,
+                          vmoy: gps.avg_speed_kmh
+                        })).reverse()}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+                          <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
+                          <YAxis className="text-xs" stroke="#64748b" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #06b6d4',
+                              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vmax" 
+                            stroke="#06b6d4" 
+                            strokeWidth={3} 
+                            name="Vmax (km/h)"
+                            dot={{ fill: '#06b6d4', r: 5, strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="vmoy" 
+                            stroke="#3b82f6" 
+                            strokeWidth={2} 
+                            strokeDasharray="5 5"
+                            name="Vmoy (km/h)"
+                            dot={{ fill: '#3b82f6', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                          />
+                          <Legend />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Charge physique */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden md:col-span-2">
+                    <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-amber-500" />
+                    <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+                          <Gauge className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Charge physique</CardTitle>
+                          <CardDescription>Player Load et intensité</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gpsList.map((gps, idx) => ({
+                          session: `S${idx + 1}`,
+                          playerLoad: gps.player_load,
+                          accelerations: gps.acc_gt3_count,
+                          decelerations: gps.decel_hard_count
+                        })).reverse()}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+                          <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
+                          <YAxis className="text-xs" stroke="#64748b" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #f97316',
+                              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                          <Bar dataKey="playerLoad" fill="#f97316" radius={[8, 8, 0, 0]} name="Player Load" />
+                          <Bar dataKey="accelerations" fill="#10b981" radius={[8, 8, 0, 0]} name="Accélérations" />
+                          <Bar dataKey="decelerations" fill="#ef4444" radius={[8, 8, 0, 0]} name="Décélérations" />
+                          <Legend />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
 
             {/* Historique GPS */}
             {playerId && gpsList.length > 0 && (

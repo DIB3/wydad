@@ -18,7 +18,7 @@ export const usePlayerAttachments = (playerId) => {
       setError(null)
     } catch (err) {
       setError(err.message)
-      console.error('Erreur attachments:', err)
+      console.error('❌ [usePlayerAttachments] Erreur attachments:', err)
     } finally {
       setLoading(false)
     }

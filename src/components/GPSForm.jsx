@@ -6,9 +6,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ModernFormField } from '@/components/ModernFormField'
-import { Upload, Save, FileSpreadsheet, Navigation, Zap, TrendingUp, Timer, Target, ArrowRight, MapPin, Activity, Paperclip } from 'lucide-react'
+import { Upload, Save, FileSpreadsheet, Navigation, Zap, TrendingUp, Timer, Target, ArrowRight, MapPin, Activity, Paperclip, Heart, BarChart3 } from 'lucide-react'
+import { 
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell
+} from 'recharts'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts'
 import gpsService from '../services/gps.service'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
@@ -17,34 +20,6 @@ import { FileList } from './FileList'
 import { handleModuleNavigation, getModuleProgress } from '../utils/moduleNavigation'
 import { ModuleProgressIndicator } from './ModuleProgressIndicator'
 import { useFormPersistence } from '../hooks/useFormPersistence'
-
-// Données d'exemple pour les graphiques GPS
-const distanceHistoryData = [
-  { session: 'S1', distance: 8.5, hid: 750, hsd: 380 },
-  { session: 'S2', distance: 10.2, hid: 850, hsd: 420 },
-  { session: 'S3', distance: 9.1, hid: 800, hsd: 400 },
-  { session: 'S4', distance: 11.5, hid: 920, hsd: 480 },
-  { session: 'S5', distance: 9.8, hid: 840, hsd: 410 },
-  { session: 'S6', distance: 10.5, hid: 880, hsd: 450 },
-]
-
-const vitesseData = [
-  { session: 'S1', vmax: 30.5, vmoy: 8.2 },
-  { session: 'S2', vmax: 32.1, vmoy: 8.5 },
-  { session: 'S3', vmax: 31.2, vmoy: 8.3 },
-  { session: 'S4', vmax: 33.5, vmoy: 9.1 },
-  { session: 'S5', vmax: 31.8, vmoy: 8.6 },
-  { session: 'S6', vmax: 32.5, vmoy: 8.7 },
-]
-
-const chargeData = [
-  { session: 'S1', accel: 25, decel: 28, sprints: 15, playerLoad: 450 },
-  { session: 'S2', accel: 28, decel: 32, sprints: 18, playerLoad: 485 },
-  { session: 'S3', accel: 26, decel: 30, sprints: 16, playerLoad: 460 },
-  { session: 'S4', accel: 30, decel: 35, sprints: 20, playerLoad: 510 },
-  { session: 'S5', accel: 27, decel: 31, sprints: 17, playerLoad: 470 },
-  { session: 'S6', accel: 29, decel: 33, sprints: 19, playerLoad: 495 },
-]
 
 export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex }) {
   const navigate = useNavigate()
@@ -80,11 +55,9 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
     const fetchExistingGPS = async () => {
       if (visitId) {
         try {
-          console.log('🔍 Chargement des données GPS existantes pour visitId:', visitId)
           const gpsData = await gpsService.getByVisitId(visitId)
           
           if (gpsData && Object.keys(gpsData).length > 0) {
-            console.log('✅ Données GPS trouvées:', gpsData)
             setFormData({
               session_date: gpsData.session_date || new Date().toISOString().split('T')[0],
               session_type: gpsData.session_type || '',
@@ -128,10 +101,19 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
     const cleaned = {}
     Object.keys(data).forEach(key => {
       const value = data[key]
-      if (value === '') {
-        cleaned[key] = null
-      } else if (value !== null && value !== undefined) {
-        cleaned[key] = value
+      // Ne pas envoyer les valeurs vides (laisser le backend utiliser les valeurs par défaut)
+      if (value !== '' && value !== null && value !== undefined) {
+        // Convertir les nombres string en nombres
+        if (['duration_min', 'distance_m', 'hid_m', 'hsd_m', 'vmax_kmh', 'sprints_count', 
+             'acc_gt3_count', 'decel_hard_count', 'player_load', 'avg_speed_kmh', 
+             'max_heart_rate_bpm', 'avg_heart_rate_bpm', 'recovery_index'].includes(key)) {
+          const numValue = parseFloat(value)
+          if (!isNaN(numValue)) {
+            cleaned[key] = numValue
+          }
+        } else {
+          cleaned[key] = value
+        }
       }
     })
     return cleaned
@@ -148,6 +130,7 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
     try {
       setLoading(true)
       const cleanedData = cleanFormData(formData)
+      
       
       // Vérifier si les données existent déjà
       try {
@@ -168,8 +151,8 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
       // Utiliser la navigation intelligente multi-modules
       handleModuleNavigation({ navigate, moduleSequence, currentModuleIndex, playerId })
     } catch (error) {
-      console.error('Erreur:', error)
-      console.error('Détails:', error.response?.data)
+      console.error('❌ [GPS Form] Erreur:', error)
+      console.error('❌ [GPS Form] Détails:', error.response?.data)
       toast.error(error.response?.data?.error || 'Erreur lors de l\'enregistrement')
     } finally {
       setLoading(false)
@@ -208,6 +191,151 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
     } finally {
       setLoading(false)
     }
+  }
+
+  // Fonctions pour générer les données des graphiques dynamiquement
+  const getPerformanceRadarData = () => {
+    const data = []
+    
+    // Distance totale (score sur 100, max 12km = 100%)
+    if (formData.distance_m) {
+      const distanceScore = Math.min((parseFloat(formData.distance_m) / 12000) * 100, 100)
+      data.push({ axe: 'Distance totale', value: distanceScore, fullMark: 100 })
+    }
+    
+    // HID (score sur 100, max 1200m = 100%)
+    if (formData.hid_m) {
+      const hidScore = Math.min((parseFloat(formData.hid_m) / 1200) * 100, 100)
+      data.push({ axe: 'HID', value: hidScore, fullMark: 100 })
+    }
+    
+    // HSD (score sur 100, max 600m = 100%)
+    if (formData.hsd_m) {
+      const hsdScore = Math.min((parseFloat(formData.hsd_m) / 600) * 100, 100)
+      data.push({ axe: 'HSD', value: hsdScore, fullMark: 100 })
+    }
+    
+    // Vitesse max (score sur 100, max 36km/h = 100%)
+    if (formData.vmax_kmh) {
+      const vmaxScore = Math.min((parseFloat(formData.vmax_kmh) / 36) * 100, 100)
+      data.push({ axe: 'Vitesse max', value: vmaxScore, fullMark: 100 })
+    }
+    
+    // Sprints (score sur 100, max 25 sprints = 100%)
+    if (formData.sprints_count) {
+      const sprintsScore = Math.min((parseFloat(formData.sprints_count) / 25) * 100, 100)
+      data.push({ axe: 'Sprints', value: sprintsScore, fullMark: 100 })
+    }
+    
+    // Accélérations (score sur 100, max 30 acc = 100%)
+    if (formData.acc_gt3_count) {
+      const accScore = Math.min((parseFloat(formData.acc_gt3_count) / 30) * 100, 100)
+      data.push({ axe: 'Accélérations', value: accScore, fullMark: 100 })
+    }
+    
+    return data
+  }
+
+  const getDistanceDistributionData = () => {
+    const data = []
+    
+    if (formData.distance_m) {
+      data.push({
+        categorie: 'Distance totale',
+        valeur: parseFloat(formData.distance_m),
+        unite: 'm',
+        color: '#10b981'
+      })
+    }
+    
+    if (formData.hid_m) {
+      data.push({
+        categorie: 'HID',
+        valeur: parseFloat(formData.hid_m),
+        unite: 'm',
+        color: '#f59e0b'
+      })
+    }
+    
+    if (formData.hsd_m) {
+      data.push({
+        categorie: 'HSD',
+        valeur: parseFloat(formData.hsd_m),
+        unite: 'm',
+        color: '#ef4444'
+      })
+    }
+    
+    return data
+  }
+
+  const getIntenseEffortsData = () => {
+    const data = []
+    
+    if (formData.sprints_count) {
+      data.push({
+        type: 'Sprints',
+        nombre: parseFloat(formData.sprints_count)
+      })
+    }
+    
+    if (formData.acc_gt3_count) {
+      data.push({
+        type: 'Accélérations >3m/s²',
+        nombre: parseFloat(formData.acc_gt3_count)
+      })
+    }
+    
+    if (formData.decel_hard_count) {
+      data.push({
+        type: 'Décélérations dures',
+        nombre: parseFloat(formData.decel_hard_count)
+      })
+    }
+    
+    return data
+  }
+
+  const getSpeedHeartRateData = () => {
+    const data = []
+    
+    if (formData.vmax_kmh) {
+      data.push({
+        parametre: 'Vitesse max',
+        valeur: parseFloat(formData.vmax_kmh),
+        unite: 'km/h',
+        max: 40
+      })
+    }
+    
+    if (formData.avg_speed_kmh) {
+      data.push({
+        parametre: 'Vitesse moy.',
+        valeur: parseFloat(formData.avg_speed_kmh),
+        unite: 'km/h',
+        max: 15
+      })
+    }
+    
+    if (formData.max_heart_rate_bpm) {
+      data.push({
+        parametre: 'FC max',
+        valeur: parseFloat(formData.max_heart_rate_bpm),
+        unite: 'bpm',
+        max: 220
+      })
+    }
+    
+    if (formData.avg_heart_rate_bpm) {
+      data.push({
+        parametre: 'FC moy.',
+        valeur: parseFloat(formData.avg_heart_rate_bpm),
+        unite: 'bpm',
+        max: 200
+      })
+    }
+    
+    return data
   }
 
   return (
@@ -288,6 +416,7 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
             gradient="from-green-500 to-emerald-500"
             value={formData.duration_min}
             onChange={(e) => handleChange('duration_min', e.target.value)}
+            max="999999"
             required 
           />
           </div>
@@ -383,140 +512,343 @@ export function GPSForm({ visitId, playerId, moduleSequence, currentModuleIndex 
         </CardContent>
       </Card>
 
-      {/* Graphiques statistiques GPS */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Évolution des distances */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
-                <MapPin className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Évolution des distances</CardTitle>
-                <CardDescription>6 dernières sessions</CardDescription>
-              </div>
+      {/* Efforts intenses */}
+      <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-red-500" />
+        <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
+              <Target className="h-5 w-5" />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={distanceHistoryData}>
-                <defs>
-                  <linearGradient id="distanceGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
-                <YAxis className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #10b981',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="distance" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  fill="url(#distanceGradient)"
-                  name="Distance (km)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            <div>
+              <CardTitle>Efforts intenses</CardTitle>
+              <CardDescription>Accélérations, décélérations et charge</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 p-6">
+          <ModernFormField 
+            label="Accélérations >3m/s²" 
+            icon={Zap}
+            id="acc-gt3" 
+            unit="" 
+            placeholder="42" 
+            gradient="from-orange-500 to-red-500"
+            value={formData.acc_gt3_count}
+            onChange={(e) => handleChange('acc_gt3_count', e.target.value)}
+          />
+          <ModernFormField 
+            label="Décélérations dures" 
+            icon={TrendingUp}
+            id="decel-hard" 
+            unit="" 
+            placeholder="38" 
+            gradient="from-red-500 to-pink-500"
+            value={formData.decel_hard_count}
+            onChange={(e) => handleChange('decel_hard_count', e.target.value)}
+          />
+          <ModernFormField 
+            label="Player Load" 
+            icon={Activity}
+            id="player-load" 
+            unit="" 
+            placeholder="485" 
+            gradient="from-purple-500 to-indigo-500"
+            value={formData.player_load}
+            onChange={(e) => handleChange('player_load', e.target.value)}
+            step="0.1"
+          />
+          <ModernFormField 
+            label="Indice de récupération" 
+            icon={TrendingUp}
+            id="recovery-index" 
+            unit="" 
+            placeholder="8.2" 
+            gradient="from-blue-500 to-cyan-500"
+            value={formData.recovery_index}
+            onChange={(e) => handleChange('recovery_index', e.target.value)}
+            step="0.1"
+          />
+        </CardContent>
+      </Card>
 
-        {/* Vitesses */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
-          <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
-                <Zap className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Vitesses</CardTitle>
-                <CardDescription>Vmax et Vmoy par session</CardDescription>
-              </div>
+      {/* Fréquence cardiaque */}
+      <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-red-500 to-pink-500" />
+        <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-pink-500 text-white">
+              <Heart className="h-5 w-5" />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={vitesseData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
-                <YAxis className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #06b6d4',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="vmax" 
-                  stroke="#06b6d4" 
-                  strokeWidth={3}
-                  dot={{ fill: '#06b6d4', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                  name="Vmax (km/h)"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="vmoy" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#3b82f6', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                  name="Vmoy (km/h)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            <div>
+              <CardTitle>Fréquence cardiaque</CardTitle>
+              <CardDescription>Données cardiaques pendant l'effort</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2 p-6">
+          <ModernFormField 
+            label="FC maximale" 
+            icon={Heart}
+            id="max-hr" 
+            unit="bpm" 
+            placeholder="195" 
+            gradient="from-red-500 to-pink-500"
+            value={formData.max_heart_rate_bpm}
+            onChange={(e) => handleChange('max_heart_rate_bpm', e.target.value)}
+          />
+          <ModernFormField 
+            label="FC moyenne" 
+            icon={Activity}
+            id="avg-hr" 
+            unit="bpm" 
+            placeholder="165" 
+            gradient="from-pink-500 to-rose-500"
+            value={formData.avg_heart_rate_bpm}
+            onChange={(e) => handleChange('avg_heart_rate_bpm', e.target.value)}
+          />
+        </CardContent>
+      </Card>
 
-        {/* Charge physique */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden md:col-span-2">
-          <div className="h-1 w-full bg-gradient-to-r from-purple-500 to-pink-500" />
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                <Activity className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Charge physique</CardTitle>
-                <CardDescription>Accélérations, décélérations et sprints</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={chargeData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
-                <YAxis className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #a855f7',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Bar dataKey="accel" fill="#a855f7" radius={[8, 8, 0, 0]} name="Accélérations" />
-                <Bar dataKey="decel" fill="#ec4899" radius={[8, 8, 0, 0]} name="Décélérations" />
-                <Bar dataKey="sprints" fill="#8b5cf6" radius={[8, 8, 0, 0]} name="Sprints" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Graphiques dynamiques en temps réel */}
+      {(getPerformanceRadarData().length > 0 || getDistanceDistributionData().length > 0 || getIntenseEffortsData().length > 0 || getSpeedHeartRateData().length > 0) && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 pt-4">
+            <BarChart3 className="h-6 w-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-slate-800">Analyses en temps réel</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Performance globale (Radar) */}
+            {getPerformanceRadarData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
+                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Performance globale</CardTitle>
+                      <CardDescription>Score de performance physique</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={getPerformanceRadarData()}>
+                      <PolarGrid stroke="#e2e8f0" strokeWidth={2} />
+                      <PolarAngleAxis 
+                        dataKey="axe" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <PolarRadiusAxis 
+                        angle={90} 
+                        domain={[0, 100]} 
+                        tick={{ fill: '#64748b', fontSize: 10 }}
+                      />
+                      <Radar 
+                        name="Score" 
+                        dataKey="value" 
+                        stroke="#10b981" 
+                        fill="#10b981" 
+                        fillOpacity={0.5}
+                        strokeWidth={3}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #10b981',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value.toFixed(1)}%`, 'Score']}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Distribution des distances (Bar) */}
+            {getDistanceDistributionData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-emerald-500 to-teal-500" />
+                <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Distribution des distances</CardTitle>
+                      <CardDescription>Répartition des efforts par intensité</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getDistanceDistributionData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="categorie" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #10b981',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => [
+                          `${value} ${props.payload.unite}`, 
+                          props.payload.categorie
+                        ]}
+                      />
+                      <Bar 
+                        dataKey="valeur" 
+                        radius={[8, 8, 0, 0]}
+                        name="Distance"
+                      >
+                        {getDistanceDistributionData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Efforts intenses (Bar) */}
+            {getIntenseEffortsData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-red-500" />
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Efforts intenses</CardTitle>
+                      <CardDescription>Sprints, accélérations et décélérations</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getIntenseEffortsData()} layout="vertical">
+                      <defs>
+                        <linearGradient id="effortsGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#f97316" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        type="number" 
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                      />
+                      <YAxis 
+                        dataKey="type" 
+                        type="category" 
+                        width={150} 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #f97316',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [value, 'Nombre']}
+                      />
+                      <Bar 
+                        dataKey="nombre" 
+                        fill="url(#effortsGradient)"
+                        radius={[0, 8, 8, 0]}
+                        name="Nombre d'efforts"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Vitesse et fréquence cardiaque (Bar) */}
+            {getSpeedHeartRateData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-red-500 to-pink-500" />
+                <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-pink-500 text-white">
+                      <Heart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Vitesse & Fréquence cardiaque</CardTitle>
+                      <CardDescription>Paramètres physiologiques de l'effort</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getSpeedHeartRateData()}>
+                      <defs>
+                        <linearGradient id="heartSpeedGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#ec4899" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="parametre" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #ef4444',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => [
+                          `${value} ${props.payload.unite}`, 
+                          props.payload.parametre
+                        ]}
+                      />
+                      <Bar 
+                        dataKey="valeur" 
+                        fill="url(#heartSpeedGradient)"
+                        radius={[8, 8, 0, 0]}
+                        name="Valeur"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notes */}
       <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">

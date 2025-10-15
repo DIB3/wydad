@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, X, File, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,12 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import attachmentService from '@/services/attachment.service';
 
-export function FileUpload({ entityType, entityId, category = 'general', onUploadSuccess }) {
+export function FileUpload({ entityType, entityId, category = 'general', onUploadSuccess, lockCategory = false }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(category);
   const [description, setDescription] = useState('');
+
+  // Mettre à jour selectedCategory quand la prop category change
+  useEffect(() => {
+    setSelectedCategory(category);
+  }, [category, entityType, lockCategory]);
 
   // Catégories selon le type d'entité
   const categories = {
@@ -54,6 +59,26 @@ export function FileUpload({ entityType, entityId, category = 'general', onUploa
     visit_impedance: [
       { value: 'impedance_report', label: '📊 Rapport d\'impédance' },
       { value: 'body_scan', label: '🔍 Scan corporel' }
+    ],
+    visit_soins: [
+      { value: 'treatment_protocol', label: '📋 Protocole de traitement' },
+      { value: 'follow_up_report', label: '📄 Rapport de suivi' },
+      { value: 'treatment_photo', label: '📸 Photo traitement' },
+      { value: 'prescription', label: '💊 Ordonnance' },
+      { value: 'general', label: '📁 Général' }
+    ],
+    visit_care: [
+      { value: 'care_protocol', label: '📋 Protocole de soins' },
+      { value: 'care_report', label: '📄 Rapport de soins' },
+      { value: 'recovery_plan', label: '🔄 Plan de récupération' },
+      { value: 'general', label: '📁 Général' }
+    ],
+    visit_examen_medical: [
+      { value: 'exam_results', label: '📊 Résultats d\'examen' },
+      { value: 'prescription', label: '💊 Ordonnance' },
+      { value: 'medical_report', label: '📋 Rapport médical' },
+      { value: 'lab_results', label: '🧪 Résultats laboratoire' },
+      { value: 'general', label: '📁 Général' }
     ],
     player: [
       { value: 'identification', label: '🪪 Pièce d\'identité' },
@@ -113,8 +138,6 @@ export function FileUpload({ entityType, entityId, category = 'general', onUploa
         description
       );
 
-      console.log('✅ Fichier uploadé:', result);
-
       // Reset
       setFile(null);
       setDescription('');
@@ -124,7 +147,7 @@ export function FileUpload({ entityType, entityId, category = 'general', onUploa
         onUploadSuccess(result);
       }
     } catch (err) {
-      console.error('❌ Erreur upload:', err);
+      console.error('❌ [FileUpload] Erreur upload:', err);
       setError(err.response?.data?.error || 'Erreur lors de l\'upload');
     } finally {
       setUploading(false);
@@ -187,8 +210,8 @@ export function FileUpload({ entityType, entityId, category = 'general', onUploa
 
             {/* Catégorie */}
             <div>
-              <Label htmlFor="category">Catégorie</Label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <Label htmlFor="category">Catégorie {lockCategory && '(fixe)'}</Label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory} disabled={lockCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une catégorie" />
                 </SelectTrigger>
@@ -200,6 +223,11 @@ export function FileUpload({ entityType, entityId, category = 'general', onUploa
                   ))}
                 </SelectContent>
               </Select>
+              {lockCategory && (
+                <p className="text-xs text-slate-500 mt-1">
+                  La catégorie est fixée pour cette section
+                </p>
+              )}
             </div>
 
             {/* Description */}

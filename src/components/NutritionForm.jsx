@@ -6,9 +6,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ModernFormField } from '@/components/ModernFormField'
-import { Save, Plus, Trash2, Apple, Utensils, Droplet, Flame, Scale, Ruler, Weight, Activity, ArrowRight, Target, TrendingUp, Paperclip } from 'lucide-react'
-import { Checkbox } from '@/components/ui/checkbox'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
+import { Save, Apple, Utensils, Droplet, Flame, Activity, ArrowRight, Target, Paperclip, PieChart, Coffee, Moon } from 'lucide-react'
+import {
+  PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+} from 'recharts'
 import nutritionService from '../services/nutrition.service'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
@@ -17,42 +20,6 @@ import { FileList } from './FileList'
 import { handleModuleNavigation, getModuleProgress } from '../utils/moduleNavigation'
 import { useFormPersistence } from '../hooks/useFormPersistence'
 import { ModuleProgressIndicator } from './ModuleProgressIndicator'
-
-// Données d'exemple pour les graphiques nutrition
-const weightEvolutionData = [
-  { mois: 'Jan', poids: 72.5, imc: 22.3 },
-  { mois: 'Fév', poids: 73.2, imc: 22.5 },
-  { mois: 'Mar', poids: 73.8, imc: 22.7 },
-  { mois: 'Avr', poids: 74.0, imc: 22.8 },
-  { mois: 'Mai', poids: 74.2, imc: 22.9 },
-  { mois: 'Juin', poids: 74.0, imc: 22.8 },
-]
-
-const macronutrientsData = [
-  { name: 'Protéines', value: 25, color: '#ef4444', grammes: 700 },
-  { name: 'Glucides', value: 55, color: '#3b82f6', grammes: 1540 },
-  { name: 'Lipides', value: 20, color: '#f59e0b', grammes: 560 },
-]
-
-const caloriesData = [
-  { jour: 'Lun', cible: 2800, réel: 2750 },
-  { jour: 'Mar', cible: 2800, réel: 2900 },
-  { jour: 'Mer', cible: 2800, réel: 2700 },
-  { jour: 'Jeu', cible: 2800, réel: 2850 },
-  { jour: 'Ven', cible: 2800, réel: 2950 },
-  { jour: 'Sam', cible: 3000, réel: 3100 },
-  { jour: 'Dim', cible: 2600, réel: 2550 },
-]
-
-const hydrationData = [
-  { jour: 'Lun', litres: 3.2 },
-  { jour: 'Mar', litres: 3.5 },
-  { jour: 'Mer', litres: 3.8 },
-  { jour: 'Jeu', litres: 3.3 },
-  { jour: 'Ven', litres: 3.6 },
-  { jour: 'Sam', litres: 4.0 },
-  { jour: 'Dim', litres: 3.0 },
-]
 
 export function NutritionForm({ visitId, playerId, moduleSequence, currentModuleIndex }) {
   const navigate = useNavigate()
@@ -85,11 +52,9 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
     const fetchExistingNutrition = async () => {
       if (visitId) {
         try {
-          console.log('🔍 Chargement des données Nutrition existantes pour visitId:', visitId)
           const nutritionData = await nutritionService.getByVisitId(visitId)
           
           if (nutritionData && Object.keys(nutritionData).length > 0) {
-            console.log('✅ Données Nutrition trouvées:', nutritionData)
             const newFormData = {
               consultation_date: nutritionData.consultation_date || new Date().toISOString().split('T')[0],
               consultation_type: nutritionData.consultation_type || '',
@@ -107,9 +72,7 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
               allergies: nutritionData.allergies || '',
               comments: nutritionData.comments || ''
             }
-            console.log('📝 Nouveau formData à définir:', newFormData)
             setFormData(newFormData)
-            console.log('✨ FormData mis à jour')
             toast.success('Données Nutrition chargées avec succès')
           }
         } catch (error) {
@@ -212,6 +175,137 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
     }
   }
 
+  // Fonctions pour générer les données des graphiques dynamiquement
+  const getMacronutrimentsData = () => {
+    const data = []
+    
+    if (formData.protein_g) {
+      data.push({
+        name: 'Protéines',
+        value: parseFloat(formData.protein_g),
+        color: '#ef4444',
+        unit: 'g/kg/j'
+      })
+    }
+    
+    if (formData.carbs_g) {
+      data.push({
+        name: 'Glucides',
+        value: parseFloat(formData.carbs_g),
+        color: '#f59e0b',
+        unit: 'g/kg/j'
+      })
+    }
+    
+    if (formData.fat_g) {
+      data.push({
+        name: 'Lipides',
+        value: parseFloat(formData.fat_g),
+        color: '#fbbf24',
+        unit: 'g/kg/j'
+      })
+    }
+    
+    return data
+  }
+
+  const getCaloriesDistributionData = () => {
+    // Calories par macronutriment (protéines: 4kcal/g, glucides: 4kcal/g, lipides: 9kcal/g)
+    const data = []
+    
+    if (formData.protein_g) {
+      const proteinKcal = parseFloat(formData.protein_g) * 4
+      data.push({
+        name: 'Protéines',
+        kcal: proteinKcal,
+        color: '#ef4444'
+      })
+    }
+    
+    if (formData.carbs_g) {
+      const carbsKcal = parseFloat(formData.carbs_g) * 4
+      data.push({
+        name: 'Glucides',
+        kcal: carbsKcal,
+        color: '#f59e0b'
+      })
+    }
+    
+    if (formData.fat_g) {
+      const fatKcal = parseFloat(formData.fat_g) * 9
+      data.push({
+        name: 'Lipides',
+        kcal: fatKcal,
+        color: '#fbbf24'
+      })
+    }
+    
+    return data
+  }
+
+  const getNutritionalBalanceData = () => {
+    const data = []
+    
+    // Score calories (optimal: 2500-3500 kcal pour sportifs)
+    if (formData.kcal_target) {
+      const caloriesValue = parseFloat(formData.kcal_target)
+      const caloriesScore = caloriesValue >= 2500 && caloriesValue <= 3500 ? 100 :
+                            Math.max(0, 100 - Math.abs(caloriesValue - 3000) / 30)
+      data.push({ axe: 'Calories', value: Math.min(caloriesScore, 100), fullMark: 100 })
+    }
+    
+    // Score protéines (optimal: 1.6-2.2 g/kg/j)
+    if (formData.protein_g) {
+      const proteinValue = parseFloat(formData.protein_g)
+      const proteinScore = proteinValue >= 1.6 && proteinValue <= 2.2 ? 100 :
+                           Math.max(0, 100 - Math.abs(proteinValue - 1.9) * 30)
+      data.push({ axe: 'Protéines', value: Math.min(proteinScore, 100), fullMark: 100 })
+    }
+    
+    // Score glucides (optimal: 5-7 g/kg/j)
+    if (formData.carbs_g) {
+      const carbsValue = parseFloat(formData.carbs_g)
+      const carbsScore = carbsValue >= 5 && carbsValue <= 7 ? 100 :
+                         Math.max(0, 100 - Math.abs(carbsValue - 6) * 15)
+      data.push({ axe: 'Glucides', value: Math.min(carbsScore, 100), fullMark: 100 })
+    }
+    
+    // Score lipides (optimal: 1-1.5 g/kg/j)
+    if (formData.fat_g) {
+      const fatValue = parseFloat(formData.fat_g)
+      const fatScore = fatValue >= 1 && fatValue <= 1.5 ? 100 :
+                       Math.max(0, 100 - Math.abs(fatValue - 1.25) * 40)
+      data.push({ axe: 'Lipides', value: Math.min(fatScore, 100), fullMark: 100 })
+    }
+    
+    // Score hydratation (optimal: 3-4 L/j)
+    if (formData.hydration_l) {
+      const hydrationValue = parseFloat(formData.hydration_l)
+      const hydrationScore = hydrationValue >= 3 && hydrationValue <= 4 ? 100 :
+                             Math.max(0, 100 - Math.abs(hydrationValue - 3.5) * 25)
+      data.push({ axe: 'Hydratation', value: Math.min(hydrationScore, 100), fullMark: 100 })
+    }
+    
+    return data
+  }
+
+  const getHydrationData = () => {
+    if (!formData.hydration_l) return []
+    
+    const hydrationValue = parseFloat(formData.hydration_l)
+    const targetMin = 3
+    const targetMax = 4
+    
+    return [{
+      type: 'Apport actuel',
+      litres: hydrationValue,
+      color: hydrationValue >= targetMin && hydrationValue <= targetMax ? '#22c55e' : 
+             hydrationValue < targetMin ? '#f59e0b' : '#3b82f6'
+    }]
+  }
+
+  const COLORS = ['#ef4444', '#f59e0b', '#fbbf24', '#22c55e', '#3b82f6', '#8b5cf6']
+
   return (
     <form className="space-y-6">
       {/* Indicateur de progression multi-modules */}
@@ -236,42 +330,21 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
           </div>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2 group">
-              <Label htmlFor="consultation-date" className="text-sm font-semibold text-slate-700 group-focus-within:text-orange-600 transition-colors">
-                Date de consultation <span className="text-red-500">*</span>
-              </Label>
-              <Input 
-                id="consultation-date" 
-                type="date"
-                value={formData.consultation_date}
-                onChange={(e) => handleChange('consultation_date', e.target.value)}
-                className="h-12 border-2 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl transition-all"
-                required 
-              />
-            </div>
-            <div className="space-y-2 group">
-              <Label htmlFor="consultation-type" className="text-sm font-semibold text-slate-700 group-focus-within:text-orange-600 transition-colors">
-                Type de consultation <span className="text-red-500">*</span>
-              </Label>
-              <Select value={formData.consultation_type} onValueChange={(value) => handleChange('consultation_type', value)}>
-                <SelectTrigger id="consultation-type" className="h-12 border-2 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl">
-                  <SelectValue placeholder="Sélectionner..." />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="initial" className="cursor-pointer">📋 Initiale</SelectItem>
-                  <SelectItem value="followup" className="cursor-pointer">🔄 Suivi</SelectItem>
-                  <SelectItem value="preseason" className="cursor-pointer">🏃 Pré-saison</SelectItem>
-                  <SelectItem value="competition" className="cursor-pointer">🏆 Compétition</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2 group">
+            <Label htmlFor="consultation-date" className="text-sm font-semibold text-slate-700 group-focus-within:text-orange-600 transition-colors">
+              Date de consultation <span className="text-red-500">*</span>
+            </Label>
+            <Input 
+              id="consultation-date" 
+              type="date"
+              value={formData.consultation_date}
+              onChange={(e) => handleChange('consultation_date', e.target.value)}
+              className="h-12 border-2 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl transition-all"
+              required 
+            />
           </div>
         </CardContent>
       </Card>
-
-      {/* Note: Section Anthropométrie masquée - Ces données sont disponibles dans le module Impédance */}
-      {/* Les données de poids, taille, IMC, composition corporelle doivent être saisies dans l'Impédancemétrie */}
 
       {/* Dietary Assessment */}
       <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
@@ -288,20 +361,6 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
           </div>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
-          <div className="space-y-2">
-            <Label htmlFor="eating-habits" className="text-sm font-semibold text-slate-700">
-              Habitudes alimentaires
-            </Label>
-            <Textarea 
-              id="eating-habits" 
-              placeholder="Nombre de repas, horaires, préférences..." 
-              rows={4}
-              value={formData.comments}
-              onChange={(e) => handleChange('comments', e.target.value)}
-              className="border-2 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl transition-all resize-none"
-            />
-          </div>
-
           <div className="grid gap-6 md:grid-cols-2">
             <ModernFormField 
               label="Apport calorique estimé" 
@@ -388,7 +447,7 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
             <Label htmlFor="goals" className="text-sm font-semibold text-slate-700 group-focus-within:text-green-600 transition-colors">
               Objectifs <span className="text-red-500">*</span>
             </Label>
-            <Select>
+            <Select value={formData.consultation_type} onValueChange={(value) => handleChange('consultation_type', value)}>
               <SelectTrigger id="goals" className="h-12 border-2 focus:border-green-500 focus:ring-green-500/20 rounded-xl">
                 <SelectValue placeholder="Sélectionner..." />
               </SelectTrigger>
@@ -410,6 +469,20 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
               id="goal-details" 
               placeholder="Objectifs spécifiques et échéances..." 
               rows={3}
+              value={formData.comments}
+              onChange={(e) => handleChange('comments', e.target.value)}
+              className="border-2 focus:border-green-500 focus:ring-green-500/20 rounded-xl transition-all resize-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="allergies" className="text-sm font-semibold text-slate-700">
+              Allergies alimentaires
+            </Label>
+            <Textarea 
+              id="allergies" 
+              placeholder="Allergies et intolérances..." 
+              rows={2}
               value={formData.allergies}
               onChange={(e) => handleChange('allergies', e.target.value)}
               className="border-2 focus:border-green-500 focus:ring-green-500/20 rounded-xl transition-all resize-none"
@@ -418,176 +491,368 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
         </CardContent>
       </Card>
 
-      {/* Graphiques statistiques Nutrition */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Évolution du poids */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-purple-500" />
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Évolution du poids</CardTitle>
-                <CardDescription>6 derniers mois</CardDescription>
-              </div>
+      {/* Repas quotidiens */}
+      <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-purple-500" />
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+              <Utensils className="h-5 w-5" />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={weightEvolutionData}>
-                <defs>
-                  <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="mois" className="text-xs" stroke="#64748b" />
-                <YAxis domain={[72, 75]} className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #3b82f6',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="poids" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  fill="url(#weightGradient)"
-                  dot={{ fill: '#3b82f6', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
-                  name="Poids (kg)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            <div>
+              <CardTitle>Plan de repas quotidien</CardTitle>
+              <CardDescription>Détail des repas et collations</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 p-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="breakfast" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Coffee className="h-4 w-4 text-orange-500" />
+                Petit déjeuner
+              </Label>
+              <Textarea
+                id="breakfast"
+                placeholder="Ex: Flocons d'avoine, fruits, œufs, pain complet..."
+                value={formData.breakfast}
+                onChange={(e) => handleChange('breakfast', e.target.value)}
+                rows={3}
+                className="border-2 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all resize-none"
+              />
+            </div>
 
-        {/* Répartition macronutriments */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-amber-500" />
-          <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 text-white">
-                <Apple className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Macronutriments</CardTitle>
-                <CardDescription>Répartition actuelle</CardDescription>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="lunch" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Utensils className="h-4 w-4 text-green-500" />
+                Déjeuner
+              </Label>
+              <Textarea
+                id="lunch"
+                placeholder="Ex: Poulet grillé, riz complet, légumes, salade..."
+                value={formData.lunch}
+                onChange={(e) => handleChange('lunch', e.target.value)}
+                rows={3}
+                className="border-2 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all resize-none"
+              />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={macronutrientsData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name} ${value}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {macronutrientsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #f97316',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
 
-        {/* Apport calorique */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-yellow-500" />
-          <CardHeader className="bg-gradient-to-r from-amber-50 to-yellow-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-yellow-500 text-white">
-                <Flame className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Apport calorique</CardTitle>
-                <CardDescription>Objectif vs Réel (7 derniers jours)</CardDescription>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="dinner" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Moon className="h-4 w-4 text-indigo-500" />
+                Dîner
+              </Label>
+              <Textarea
+                id="dinner"
+                placeholder="Ex: Poisson, quinoa, légumes vapeur..."
+                value={formData.dinner}
+                onChange={(e) => handleChange('dinner', e.target.value)}
+                rows={3}
+                className="border-2 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all resize-none"
+              />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={caloriesData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="jour" className="text-xs" stroke="#64748b" />
-                <YAxis className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #f59e0b',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Bar dataKey="cible" fill="#cbd5e1" radius={[8, 8, 0, 0]} name="Cible (kcal)" />
-                <Bar dataKey="réel" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Réel (kcal)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
 
-        {/* Hydratation */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
-          <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
-                <Droplet className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Hydratation</CardTitle>
-                <CardDescription>Consommation d&apos;eau quotidienne</CardDescription>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="snacks" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Apple className="h-4 w-4 text-red-500" />
+                Collations
+              </Label>
+              <Textarea
+                id="snacks"
+                placeholder="Ex: Fruits, noix, yaourt, barres énergétiques..."
+                value={formData.snacks}
+                onChange={(e) => handleChange('snacks', e.target.value)}
+                rows={3}
+                className="border-2 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all resize-none"
+              />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={hydrationData}>
-                <defs>
-                  <linearGradient id="hydrationGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8}/>
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.9}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="jour" className="text-xs" stroke="#64748b" />
-                <YAxis domain={[0, 5]} className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #06b6d4',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Bar dataKey="litres" fill="url(#hydrationGradient)" radius={[8, 8, 0, 0]} name="Litres" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Repas de match */}
+      <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+              <Target className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle>Nutrition de match</CardTitle>
+              <CardDescription>Repas avant et après la compétition</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2 p-6">
+          <div className="space-y-2">
+            <Label htmlFor="pre-match" className="text-sm font-semibold text-slate-700">
+              Repas pré-match (H-3)
+            </Label>
+            <Textarea
+              id="pre-match"
+              placeholder="Ex: Pâtes, poulet, banane, eau..."
+              value={formData.pre_match_meal}
+              onChange={(e) => handleChange('pre_match_meal', e.target.value)}
+              rows={3}
+              className="border-2 focus:border-green-500 focus:ring-green-500/20 rounded-xl transition-all resize-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="post-match" className="text-sm font-semibold text-slate-700">
+              Repas post-match (H+2)
+            </Label>
+            <Textarea
+              id="post-match"
+              placeholder="Ex: Protéines, glucides rapides, réhydratation..."
+              value={formData.post_match_meal}
+              onChange={(e) => handleChange('post_match_meal', e.target.value)}
+              rows={3}
+              className="border-2 focus:border-green-500 focus:ring-green-500/20 rounded-xl transition-all resize-none"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Graphiques dynamiques en temps réel */}
+      {(getMacronutrimentsData().length > 0 || getCaloriesDistributionData().length > 0 || getNutritionalBalanceData().length > 0 || getHydrationData().length > 0) && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 pt-4">
+            <PieChart className="h-6 w-6 text-orange-600" />
+            <h2 className="text-2xl font-bold text-slate-800">Analyses en temps réel</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Répartition macronutriments (Pie Chart) */}
+            {getMacronutrimentsData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-red-500 to-yellow-500" />
+                <CardHeader className="bg-gradient-to-r from-red-50 to-yellow-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-yellow-500 text-white">
+                      <PieChart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Macronutriments</CardTitle>
+                      <CardDescription>Répartition protéines/glucides/lipides</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={getMacronutrimentsData()}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        innerRadius={40}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="#fff"
+                        strokeWidth={2}
+                        label={(entry) => `${entry.name}: ${entry.value}${entry.unit}`}
+                      >
+                        {getMacronutrimentsData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #f59e0b',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => [`${value} ${props.payload.unit}`, props.payload.name]}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: '600' }}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Distribution calorique (Bar Chart) */}
+            {getCaloriesDistributionData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-red-500" />
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                      <Flame className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Distribution calorique</CardTitle>
+                      <CardDescription>Calories par macronutriment</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getCaloriesDistributionData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <YAxis 
+                        label={{ value: 'Calories (kcal)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#64748b' } }}
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #f97316',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => [`${value.toFixed(0)} kcal`, props.payload.name]}
+                      />
+                      <Bar 
+                        dataKey="kcal" 
+                        radius={[8, 8, 0, 0]}
+                        name="Calories"
+                      >
+                        {getCaloriesDistributionData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Balance nutritionnelle (Radar) */}
+            {getNutritionalBalanceData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
+                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Balance nutritionnelle</CardTitle>
+                      <CardDescription>Score d'équilibre alimentaire</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={getNutritionalBalanceData()}>
+                      <PolarGrid stroke="#e2e8f0" strokeWidth={2} />
+                      <PolarAngleAxis 
+                        dataKey="axe" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <PolarRadiusAxis 
+                        angle={90} 
+                        domain={[0, 100]} 
+                        tick={{ fill: '#64748b', fontSize: 10 }}
+                      />
+                      <Radar 
+                        name="Score" 
+                        dataKey="value" 
+                        stroke="#10b981" 
+                        fill="#10b981" 
+                        fillOpacity={0.5}
+                        strokeWidth={3}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #10b981',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value.toFixed(1)}%`, 'Score optimal']}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Hydratation (Bar) */}
+            {getHydrationData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                      <Droplet className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Hydratation quotidienne</CardTitle>
+                      <CardDescription>Apport hydrique journalier</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getHydrationData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="type" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <YAxis 
+                        label={{ value: 'Litres', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#64748b' } }}
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                        domain={[0, 5]}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #06b6d4',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value} L/jour`, 'Hydratation']}
+                      />
+                      <Bar 
+                        dataKey="litres" 
+                        radius={[8, 8, 0, 0]}
+                        name="Litres"
+                      >
+                        {getHydrationData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-xs text-center">
+                    <p className="text-slate-600">✨ Graphique mis à jour en temps réel avec vos données</p>
+                    <p className="text-slate-500 mt-2">
+                      🟢 Optimal: 3-4L | 🟡 Insuffisant: &lt;3L | 🔵 Élevé: &gt;4L
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Documents et pièces jointes */}
       {visitId && (
@@ -654,4 +919,3 @@ export function NutritionForm({ visitId, playerId, moduleSequence, currentModule
     </form>
   )
 }
-

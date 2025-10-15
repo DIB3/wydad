@@ -47,6 +47,11 @@ const pcmaService = {
 
   async getByPlayerId(playerId) {
     const response = await api.get('/visits')
+    
+    // Debug: Afficher les modules des visites de ce joueur
+    const playerVisits = response.data.filter(v => v.player_id === playerId)
+    const modules = playerVisits.map(v => v.module)
+    
     const visits = response.data.filter(visit => 
       visit.player_id === playerId && visit.module === 'pcma'
     )

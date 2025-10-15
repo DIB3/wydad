@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { File, Download, Eye, Trash2, RotateCcw, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,28 +6,35 @@ import { Badge } from '@/components/ui/badge';
 import attachmentService from '@/services/attachment.service';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { FilePreviewDialog } from './FilePreviewDialog';
 
 export function FileList({ entityType, entityId, category = null, onDelete, refreshTrigger }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
-  useEffect(() => {
-    loadFiles();
-  }, [entityType, entityId, category, refreshTrigger]);
-
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     try {
       setLoading(true);
       const data = await attachmentService.getByEntity(entityType, entityId, category);
       setFiles(data);
     } catch (err) {
       console.error('❌ Erreur chargement fichiers:', err);
+      setFiles([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [entityType, entityId, category]);
 
-  const handleDownload = async (file) => {
+  useEffect(() => {
+    loadFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadFiles, refreshTrigger]);
+
+  const handleDownload = async (file, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     try {
       await attachmentService.downloadFile(file.id, file.original_filename);
     } catch (err) {
@@ -35,12 +42,22 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
     }
   };
 
-  const handleView = (file) => {
-    const viewUrl = attachmentService.getViewUrl(file.id);
-    window.open(viewUrl, '_blank');
+  const handleView = (file, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    try {
+      setPreviewFile(file);
+      setTimeout(() => {
+        setShowPreview(true);
+      }, 0);
+    } catch (err) {
+      console.error('❌ Erreur visualisation:', err);
+    }
   };
 
-  const handleDelete = async (file) => {
+  const handleDelete = async (file, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) {
       try {
         await attachmentService.softDelete(file.id);
@@ -52,7 +69,9 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
     }
   };
 
-  const handleRestore = async (file) => {
+  const handleRestore = async (file, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     try {
       await attachmentService.restore(file.id);
       await loadFiles();
@@ -87,22 +106,41 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
       ultrasound: '🔊 Échographie',
       musculoskeletal_exam: '🦴 Examen musculo-squelettique',
       fitness_decision: '✅ Décision d\'aptitude',
+      // Blessures
       injury_photo: '📸 Photo blessure',
       injury_xray: '🦴 Radiographie',
       injury_mri: '🧲 IRM blessure',
       injury_report: '📋 Rapport médical',
       treatment_plan: '💊 Plan de traitement',
+      // Nutrition
       meal_plan: '🍽️ Plan de repas',
       nutrition_analysis: '📊 Analyse nutritionnelle',
       body_composition: '⚖️ Composition corporelle',
+      // GPS
       gps_report: '📍 Rapport GPS',
       performance_analysis: '📈 Analyse performance',
       training_data: '🏃 Données entraînement',
+      // Impédance
       impedance_report: '📊 Rapport impédance',
       body_scan: '🔍 Scan corporel',
+      // Soins
+      treatment_protocol: '📋 Protocole de traitement',
+      follow_up_report: '📄 Rapport de suivi',
+      treatment_photo: '📸 Photo traitement',
+      prescription: '💊 Ordonnance',
+      // Care
+      care_protocol: '📋 Protocole de soins',
+      care_report: '📄 Rapport de soins',
+      recovery_plan: '🔄 Plan de récupération',
+      // Examen médical
+      exam_results: '📊 Résultats d\'examen',
+      medical_report: '📋 Rapport médical',
+      lab_results: '🧪 Résultats laboratoire',
+      // Joueur
       identification: '🪪 Pièce d\'identité',
       administrative: '📄 Document administratif',
       certificate: '📜 Certificat',
+      // Général
       general: '📄 Général',
       other: '📁 Autre'
     };
@@ -193,7 +231,8 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleView(file)}
+                      type="button"
+                      onClick={(e) => handleView(file, e)}
                       title="Voir"
                       className="hover:bg-[#29BACD]/10 hover:text-[#29BACD]"
                     >
@@ -202,7 +241,8 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDownload(file)}
+                      type="button"
+                      onClick={(e) => handleDownload(file, e)}
                       title="Télécharger"
                       className="hover:bg-[#29BACD]/10 hover:text-[#29BACD]"
                     >
@@ -211,7 +251,8 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(file)}
+                      type="button"
+                      onClick={(e) => handleDelete(file, e)}
                       title="Supprimer"
                       className="hover:bg-red-50 hover:text-red-600"
                     >
@@ -222,7 +263,8 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleRestore(file)}
+                    type="button"
+                    onClick={(e) => handleRestore(file, e)}
                     title="Restaurer"
                     className="hover:bg-green-50 hover:text-green-600"
                   >
@@ -234,6 +276,13 @@ export function FileList({ entityType, entityId, category = null, onDelete, refr
           ))}
         </div>
       </CardContent>
+
+      {/* Dialogue de prévisualisation */}
+      <FilePreviewDialog 
+        file={previewFile}
+        open={showPreview}
+        onOpenChange={setShowPreview}
+      />
     </Card>
   );
 }

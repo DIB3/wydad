@@ -3,7 +3,7 @@ import notificationService from '../services/notification.service'
 import { useAuth } from '../contexts/AuthContext'
 import io from 'socket.io-client'
 
-const SOCKET_URL = 'https://omnidocteur.ma/api'
+const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8000'
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState([])

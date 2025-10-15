@@ -4,13 +4,14 @@ import { AppSidebar } from '@/components/AppSidebar'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { InjuryForm } from '@/components/InjuryForm'
 import { PlayerSelector } from '@/components/PlayerSelector'
-import { ArrowLeft, AlertCircle, Heart, Activity, Target } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Heart, Activity, Target, TrendingUp, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Link, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useVisits } from '../../hooks/useVisits'
 import { usePlayerInjuries } from '../../hooks/useInjuries'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 export default function InjuriesPage() {
   const location = useLocation()
@@ -21,6 +22,8 @@ export default function InjuriesPage() {
   
   const [visitId, setVisitId] = useState(initialVisitId)
   const [playerId, setPlayerId] = useState(initialPlayerId)
+  
+  // Debug
   
   const { visits } = useVisits()
   const { injuriesList } = usePlayerInjuries(playerId)
@@ -118,6 +121,227 @@ export default function InjuriesPage() {
               moduleName="Blessures"
               moduleRoute="/modules/injuries"
             />
+
+            {/* Graphiques d'analyse - Affichés uniquement si au moins 2 blessures */}
+            {playerId && injuriesList.length >= 2 && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <TrendingUp className="h-6 w-6 text-red-600" />
+                  Analyse des blessures
+                  <Badge className="bg-gradient-to-r from-red-500 to-orange-500 text-white">
+                    {injuriesList.length} blessures
+                  </Badge>
+                </h2>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Types de blessures */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-red-500 to-orange-500" />
+                    <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 text-white">
+                          <Target className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Types de blessures</CardTitle>
+                          <CardDescription>Répartition par type</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={(() => {
+                              const typeCount = {}
+                              injuriesList.forEach(injury => {
+                                if (injury.type) {
+                                  typeCount[injury.type] = (typeCount[injury.type] || 0) + 1
+                                }
+                              })
+                              return Object.entries(typeCount).map(([name, value]) => ({
+                                name,
+                                value,
+                                percentage: ((value / injuriesList.length) * 100).toFixed(0)
+                              }))
+                            })()}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percentage }) => `${name} (${percentage}%)`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {(() => {
+                              const colors = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16']
+                              const typeCount = {}
+                              injuriesList.forEach(injury => {
+                                if (injury.type) typeCount[injury.type] = (typeCount[injury.type] || 0) + 1
+                              })
+                              return Object.keys(typeCount).map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                              ))
+                            })()}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Gravité des blessures */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-yellow-500" />
+                    <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 text-white">
+                          <AlertCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Gravité</CardTitle>
+                          <CardDescription>Répartition par niveau</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={(() => {
+                          const severityCount = { 'legere': 0, 'moderee': 0, 'grave': 0 }
+                          injuriesList.forEach(injury => {
+                            if (injury.severity && severityCount.hasOwnProperty(injury.severity)) {
+                              severityCount[injury.severity]++
+                            }
+                          })
+                          return [
+                            { name: 'Légère', count: severityCount.legere, fill: '#84cc16' },
+                            { name: 'Modérée', count: severityCount.moderee, fill: '#f97316' },
+                            { name: 'Grave', count: severityCount.grave, fill: '#ef4444' }
+                          ]
+                        })()}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+                          <XAxis dataKey="name" className="text-xs" stroke="#64748b" />
+                          <YAxis className="text-xs" stroke="#64748b" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #f97316',
+                              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                          <Bar dataKey="count" radius={[8, 8, 0, 0]} name="Nombre">
+                            {[0, 1, 2].map((index) => (
+                              <Cell key={`cell-${index}`} fill={index === 0 ? '#84cc16' : index === 1 ? '#f97316' : '#ef4444'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Localisation des blessures */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-cyan-500" />
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+                          <MapPin className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Localisation</CardTitle>
+                          <CardDescription>Zones touchées</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={(() => {
+                              const locationCount = {}
+                              injuriesList.forEach(injury => {
+                                if (injury.location) {
+                                  locationCount[injury.location] = (locationCount[injury.location] || 0) + 1
+                                }
+                              })
+                              return Object.entries(locationCount).map(([name, value]) => ({
+                                name,
+                                value,
+                                percentage: ((value / injuriesList.length) * 100).toFixed(0)
+                              }))
+                            })()}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percentage }) => `${name} (${percentage}%)`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {(() => {
+                              const colors = ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#f43f5e']
+                              const locationCount = {}
+                              injuriesList.forEach(injury => {
+                                if (injury.location) locationCount[injury.location] = (locationCount[injury.location] || 0) + 1
+                              })
+                              return Object.keys(locationCount).map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                              ))
+                            })()}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Statut de récupération */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
+                    <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                          <Heart className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Statut de récupération</CardTitle>
+                          <CardDescription>État actuel</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={(() => {
+                          const statusCount = {}
+                          injuriesList.forEach(injury => {
+                            const status = injury.recovery_status || 'Non défini'
+                            statusCount[status] = (statusCount[status] || 0) + 1
+                          })
+                          return Object.entries(statusCount).map(([name, count]) => ({
+                            name,
+                            count
+                          }))
+                        })()}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+                          <XAxis dataKey="name" className="text-xs" stroke="#64748b" angle={-15} textAnchor="end" height={60} />
+                          <YAxis className="text-xs" stroke="#64748b" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              borderRadius: '12px',
+                              border: '2px solid #10b981',
+                              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                          <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} name="Nombre" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
 
             {/* Historique Blessures */}
             {playerId && injuriesList.length > 0 && (

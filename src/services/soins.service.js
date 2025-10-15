@@ -2,10 +2,11 @@ import api from './api'
 
 const soinsService = {
   async create(visitId, soinData) {
-    const response = await api.post('/visit_soins', {
+    const payload = {
       visit_id: visitId,
       ...soinData
-    })
+    }
+    const response = await api.post('/visit_soins', payload)
     return response.data
   },
 

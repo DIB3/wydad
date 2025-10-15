@@ -12,7 +12,11 @@ import { UpcomingEvents } from '@/components/UpcomingEvents'
 import { TodayVisitsAlert } from '@/components/TodayVisitsAlert'
 import { Users, ClipboardList, AlertTriangle, TrendingUp, Plus, ArrowUpRight, Calendar, Activity, Sparkles, Loader2, UserCircle, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+} from 'recharts'
 import { useReportData } from '../hooks/useReportData'
 import { usePlayers } from '../hooks/usePlayers'
 import { useAuth } from '../contexts/AuthContext'
@@ -22,8 +26,13 @@ export default function Dashboard() {
   const [selectedPlayerId, setSelectedPlayerId] = useState(null)
   const { 
     stats, 
-    visitsEvolution, 
+    visitsEvolution,
+    visitsByModule,
     statusDistribution, 
+    injuriesEvolution,
+    impedanceData,
+    gpsData,
+    performanceRadar,
     recentVisits,
     loading, 
     error 
@@ -33,9 +42,6 @@ export default function Dashboard() {
   useTodayScheduledVisits()
   const { players } = usePlayers()
   const { user } = useAuth()
-
-  // Données pour les graphiques
-  const visitsData = visitsEvolution
 
   // Si les données sont en chargement
   if (loading) {
@@ -513,50 +519,333 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Visits Trend Chart with modern styling */}
-              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
-                <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-white">
-                  <div className="flex items-center gap-2">
-                    <div className="text-2xl">📊</div>
-                    <div>
-                      <CardTitle>Tendance des visites</CardTitle>
-                      <CardDescription>Évolution des consultations sur 6 mois</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={visitsData}>
-                      <defs>
-                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#DC143C" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#DC143C" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="month" stroke="#64748b" />
-                      <YAxis stroke="#64748b" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: 'none', 
-                          borderRadius: '8px', 
-                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
-                        }} 
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="count" 
-                        stroke="#DC143C" 
-                        strokeWidth={3}
-                        dot={{ fill: '#DC143C', r: 6 }}
-                        activeDot={{ r: 8, fill: '#B71C1C' }} 
-                        fill="url(#colorCount)"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+            </div>
+
+            {/* Section Graphiques Dynamiques Avancés */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 backdrop-blur-sm bg-white/60 p-4 rounded-xl border border-white/20 shadow-lg">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-destructive text-white text-2xl shadow-lg">
+                  📊
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-destructive bg-clip-text text-transparent">
+                    Analyses Médicales Avancées
+                  </h2>
+                  <p className="text-sm text-slate-600">Graphiques dynamiques basés sur les données réelles</p>
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Visites par module (Pie Chart) */}
+                {visitsByModule && visitsByModule.length > 0 && (
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
+                    <div className="h-1 w-full bg-gradient-to-r from-primary to-destructive" />
+                    <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-destructive text-white">
+                          <Activity className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Répartition des modules</CardTitle>
+                          <CardDescription>Distribution des types de visites</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={visitsByModule}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            innerRadius={50}
+                            paddingAngle={5}
+                            dataKey="count"
+                            stroke="#fff"
+                            strokeWidth={2}
+                            label={(entry) => `${entry.module}: ${entry.count}`}
+                          >
+                            {visitsByModule.map((entry, index) => {
+                              const colors = ['#DC143C', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+                              return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                            })}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                              borderRadius: '12px',
+                              border: '2px solid #DC143C',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              padding: '12px'
+                            }}
+                          />
+                          <Legend 
+                            verticalAlign="bottom" 
+                            height={36}
+                            wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: '600' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <p className="text-xs text-center text-slate-600 mt-4">
+                        ✨ Données en temps réel depuis la base de données
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Performance Radar */}
+                {performanceRadar && performanceRadar.length > 0 && (
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
+                    <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-500" />
+                    <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+                          <TrendingUp className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Performance globale</CardTitle>
+                          <CardDescription>Indicateurs clés de performance</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <RadarChart data={performanceRadar}>
+                          <PolarGrid stroke="#e2e8f0" strokeWidth={2} />
+                          <PolarAngleAxis 
+                            dataKey="metric" 
+                            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                          />
+                          <PolarRadiusAxis 
+                            angle={90} 
+                            domain={[0, 100]} 
+                            tick={{ fill: '#64748b', fontSize: 10 }}
+                          />
+                          <Radar 
+                            name="Score" 
+                            dataKey="value" 
+                            stroke="#10b981" 
+                            fill="#10b981" 
+                            fillOpacity={0.6}
+                            strokeWidth={3}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                              borderRadius: '12px',
+                              border: '2px solid #10b981',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              padding: '12px'
+                            }}
+                            formatter={(value) => [`${value.toFixed(1)}%`, 'Score']}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                      <p className="text-xs text-center text-slate-600 mt-4">
+                        ✨ Données en temps réel depuis la base de données
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Évolution des blessures (Bar Chart) */}
+                {injuriesEvolution && injuriesEvolution.length > 0 && (
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
+                    <div className="h-1 w-full bg-gradient-to-r from-red-500 to-orange-500" />
+                    <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 text-white">
+                          <AlertTriangle className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Évolution des blessures</CardTitle>
+                          <CardDescription>Suivi des blessures sur 6 mois</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={injuriesEvolution}>
+                          <defs>
+                            <linearGradient id="injuryGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#f97316" stopOpacity={0.9}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                          />
+                          <YAxis 
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 11 }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                              borderRadius: '12px',
+                              border: '2px solid #ef4444',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              padding: '12px'
+                            }}
+                          />
+                          <Bar 
+                            dataKey="count" 
+                            fill="url(#injuryGradient)"
+                            radius={[8, 8, 0, 0]}
+                            name="Nombre de blessures"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <p className="text-xs text-center text-slate-600 mt-4">
+                        ✨ Données en temps réel depuis la base de données
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Données GPS (Bar Chart) */}
+                {gpsData && gpsData.length > 0 && (
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
+                    <div className="h-1 w-full bg-gradient-to-r from-emerald-500 to-teal-500" />
+                    <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+                          <Activity className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Performance GPS</CardTitle>
+                          <CardDescription>Moyenne des distances parcourues</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={gpsData}>
+                          <defs>
+                            <linearGradient id="gpsGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                              <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.9}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis 
+                            dataKey="week" 
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                          />
+                          <YAxis 
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 11 }}
+                            label={{ value: 'Distance (km)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#64748b' } }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                              borderRadius: '12px',
+                              border: '2px solid #10b981',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              padding: '12px'
+                            }}
+                            formatter={(value) => [`${value.toFixed(2)} km`, 'Distance']}
+                          />
+                          <Bar 
+                            dataKey="distance_km" 
+                            fill="url(#gpsGradient)"
+                            radius={[8, 8, 0, 0]}
+                            name="Distance moyenne"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <p className="text-xs text-center text-slate-600 mt-4">
+                        ✨ Données en temps réel depuis la base de données
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Évolution Impédance (Line Chart) */}
+                {impedanceData && impedanceData.length > 0 && (
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
+                    <div className="h-1 w-full bg-gradient-to-r from-purple-500 to-pink-500" />
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                          <Activity className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Composition corporelle</CardTitle>
+                          <CardDescription>Évolution de l'IMC et masse grasse</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={impedanceData}>
+                          <defs>
+                            <linearGradient id="bmiGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#a855f7" stopOpacity={0.3}/>
+                              <stop offset="100%" stopColor="#a855f7" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="fatGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ec4899" stopOpacity={0.3}/>
+                              <stop offset="100%" stopColor="#ec4899" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                          />
+                          <YAxis 
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 11 }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                              borderRadius: '12px',
+                              border: '2px solid #a855f7',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              padding: '12px'
+                            }}
+                          />
+                          <Legend 
+                            wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: '600' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="avg_bmi" 
+                            stroke="#a855f7" 
+                            strokeWidth={3}
+                            dot={{ fill: '#a855f7', r: 5 }}
+                            activeDot={{ r: 7, fill: '#9333ea' }}
+                            name="IMC moyen"
+                            fill="url(#bmiGradient)"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="avg_body_fat" 
+                            stroke="#ec4899" 
+                            strokeWidth={3}
+                            dot={{ fill: '#ec4899', r: 5 }}
+                            activeDot={{ r: 7, fill: '#db2777' }}
+                            name="Masse grasse (%)"
+                            fill="url(#fatGradient)"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      <p className="text-xs text-center text-slate-600 mt-4">
+                        ✨ Données en temps réel depuis la base de données
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           </main>
         </div>

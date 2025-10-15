@@ -45,6 +45,7 @@ const nutritionService = {
 
   async getByPlayerId(playerId) {
     const response = await api.get('/visits')
+    
     const visits = response.data.filter(visit => 
       visit.player_id === playerId && visit.module === 'nutrition'
     )
@@ -55,7 +56,6 @@ const nutritionService = {
         const nutrition = await this.getByVisitId(visit.id)
         nutritionData.push({ ...nutrition, visit })
       } catch (error) {
-        // Visite sans nutrition, on ignore
       }
     }
     

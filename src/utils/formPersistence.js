@@ -18,7 +18,6 @@ export const saveFormData = (moduleType, formData) => {
       timestamp: Date.now()
     }
     localStorage.setItem(FORM_DATA_KEY, JSON.stringify(dataToSave))
-    console.log('💾 Données du formulaire sauvegardées temporairement')
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error)
   }
@@ -46,7 +45,6 @@ export const restoreFormData = (moduleType) => {
       return null
     }
 
-    console.log('📦 Données du formulaire restaurées')
     
     // Nettoyer après restauration
     localStorage.removeItem(FORM_DATA_KEY)

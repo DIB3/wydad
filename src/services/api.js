@@ -1,5 +1,5 @@
 import axios from 'axios'
-
+// URL de l'API - peut être configurée via VITE_API_URL dans .env
 const API_URL = import.meta.env.VITE_API_URL || 'https://omnidocteur.ma/api'
 
 // Create axios instance

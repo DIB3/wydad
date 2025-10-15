@@ -675,7 +675,7 @@ export default function SettingsPage() {
                             <p className="text-sm font-medium">URL de l'API</p>
                           </div>
                           <p className="text-sm text-muted-foreground font-mono">
-                            {import.meta.env.VITE_API_URL || 'https://omnidocteur.ma/api'}
+                            {import.meta.env.VITE_API_URL || 'http://localhost:8000'}
                           </p>
                         </div>
 
@@ -685,7 +685,7 @@ export default function SettingsPage() {
                             <p className="text-sm font-medium">WebSocket</p>
                           </div>
                           <p className="text-sm text-muted-foreground font-mono">
-                            {import.meta.env.VITE_WS_URL || 'https://omnidocteur.ma/api'}
+                            {import.meta.env.VITE_WS_URL || 'http://localhost:8000'}
                           </p>
                         </div>
                       </div>

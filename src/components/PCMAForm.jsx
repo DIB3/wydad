@@ -13,9 +13,12 @@ import { PCMAReport } from '@/components/PCMAReport'
 import { 
   Upload, Save, Heart, Ruler, Weight, Activity, 
   Stethoscope, Wind, Droplet, Brain, Thermometer, Zap, ArrowRight,
-  FileText, TestTube, Pill, TrendingUp, Siren, Move, Paperclip, Printer
+  FileText, TestTube, Pill, TrendingUp, Siren, Move, Paperclip, Printer, AlertCircle
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { 
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 import pcmaService from '../services/pcma.service'
 import playerService from '../services/player.service'
 import { toast } from 'sonner'
@@ -23,41 +26,7 @@ import { useNavigate } from 'react-router-dom'
 import { handleModuleNavigation, getModuleProgress } from '../utils/moduleNavigation'
 import { ModuleProgressIndicator } from './ModuleProgressIndicator'
 import { useFormPersistence } from '../hooks/useFormPersistence'
-
-// Données d'exemple pour les graphiques
-const imcHistoryData = [
-  { mois: 'Jan', imc: 22.5, poids: 73 },
-  { mois: 'Fév', imc: 22.7, poids: 73.5 },
-  { mois: 'Mar', imc: 22.6, poids: 73.2 },
-  { mois: 'Avr', imc: 22.8, poids: 74 },
-  { mois: 'Mai', imc: 22.9, poids: 74.2 },
-  { mois: 'Juin', imc: 22.8, poids: 74 },
-]
-
-const tensionData = [
-  { mois: 'Jan', systolique: 125, diastolique: 75 },
-  { mois: 'Fév', systolique: 128, diastolique: 78 },
-  { mois: 'Mar', systolique: 126, diastolique: 76 },
-  { mois: 'Avr', systolique: 128, diastolique: 78 },
-  { mois: 'Mai', systolique: 127, diastolique: 77 },
-  { mois: 'Juin', systolique: 128, diastolique: 78 },
-]
-
-const biologieData = [
-  { categorie: 'Hémoglobine', valeur: 95, max: 100 },
-  { categorie: 'Fer', valeur: 85, max: 100 },
-  { categorie: 'Lipides', valeur: 80, max: 100 },
-  { categorie: 'Glycémie', valeur: 92, max: 100 },
-  { categorie: 'Rénal', valeur: 88, max: 100 },
-]
-
-const cardioRadarData = [
-  { axe: 'FEVG', value: 90, fullMark: 100 },
-  { axe: 'FC repos', value: 85, fullMark: 100 },
-  { axe: 'TA', value: 88, fullMark: 100 },
-  { axe: 'SpO₂', value: 98, fullMark: 100 },
-  { axe: 'ECG', value: 100, fullMark: 100 },
-]
+import { clearFormData } from '../utils/formPersistence'
 
 export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex }) {
   const navigate = useNavigate()
@@ -89,11 +58,9 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
     const fetchExistingPCMA = async () => {
       if (visitId) {
         try {
-          console.log('🔍 Chargement des données PCMA existantes pour visitId:', visitId)
           const pcmaData = await pcmaService.getByVisitId(visitId)
           
           if (pcmaData && Object.keys(pcmaData).length > 0) {
-            console.log('✅ Données PCMA trouvées:', pcmaData)
             // Remplir le formulaire avec les données existantes
             setFormData(prevData => ({
               ...prevData,
@@ -157,14 +124,9 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               physician_name: pcmaData.physician_name || '',
             }))
             toast.success('Données PCMA chargées avec succès')
-          } else {
-            console.log('ℹ️ Aucune donnée PCMA existante, formulaire vide')
           }
         } catch (error) {
-          // Erreur 404 = pas de données PCMA encore, c'est normal
-          if (error.response?.status === 404) {
-            console.log('ℹ️ Pas de données PCMA pour cette visite (nouvelle visite)')
-          } else {
+          if (error.response?.status !== 404) {
             console.error('❌ Erreur lors du chargement des données PCMA:', error)
             toast.error('Erreur lors du chargement des données')
           }
@@ -292,17 +254,13 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
     return cleaned
   }
 
-  const handleUploadSuccess = (file) => {
-    console.log('✅ Fichier uploadé:', file)
-    setRefreshFiles(prev => prev + 1) // Forcer le rechargement des listes
+  const handleUploadSuccess = () => {
+    setRefreshFiles(prev => prev + 1)
     toast.success('Fichier uploadé avec succès !')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    console.log('🔍 Debug - visitId:', visitId)
-    console.log('🔍 Debug - playerId:', playerId)
     
     if (!visitId) {
       toast.error('ID de visite manquant - Veuillez créer une visite d\'abord via /visits/new')
@@ -312,21 +270,15 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
     try {
       setLoading(true)
       
-      // Nettoyer les données (remplacer '' par null)
       const cleanedData = cleanFormData(formData)
-      console.log('📤 Envoi des données PCMA nettoyées...')
       
       // Vérifier si les données existent déjà
       try {
         await pcmaService.getByVisitId(visitId)
-        // Si on arrive ici, les données existent, on fait un update
-        console.log('📝 Mise à jour des données existantes')
         await pcmaService.update(visitId, cleanedData)
         toast.success('Examen PCMA mis à jour avec succès !')
       } catch (error) {
         if (error.response?.status === 404) {
-          // Les données n'existent pas, on les crée
-          console.log('➕ Création de nouvelles données')
           await pcmaService.create(visitId, cleanedData)
           toast.success('Examen PCMA enregistré avec succès !')
         } else {
@@ -334,11 +286,10 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
         }
       }
       
-      // Utiliser la navigation intelligente multi-modules
+      clearFormData()
       handleModuleNavigation({ navigate, moduleSequence, currentModuleIndex, playerId })
     } catch (error) {
       console.error('❌ Erreur lors de l\'enregistrement:', error)
-      console.error('❌ Détails:', error.response?.data)
       toast.error(error.response?.data?.error || 'Erreur lors de l\'enregistrement du PCMA')
     } finally {
       setLoading(false)
@@ -370,6 +321,9 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
           throw error
         }
       }
+      
+      // Nettoyer le localStorage après sauvegarde réussie
+      clearFormData()
     } catch (error) {
       console.error('Erreur:', error)
       console.error('Détails:', error.response?.data)
@@ -377,6 +331,156 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
     } finally {
       setLoading(false)
     }
+  }
+
+  // Fonctions pour générer les données des graphiques dynamiquement
+  const getCardioRadarData = () => {
+    const data = []
+    
+    // FEVG (Fraction d'éjection ventriculaire gauche) - Normal: 55-70%
+    if (formData.fevg_percent) {
+      const fevgValue = (parseFloat(formData.fevg_percent) / 70) * 100
+      data.push({ axe: 'FEVG', value: Math.min(fevgValue, 100), fullMark: 100 })
+    }
+    
+    // Fréquence cardiaque au repos - Normal: 60-80 bpm (inversé car plus bas = mieux)
+    if (formData.hr_bpm) {
+      const hrValue = 100 - ((parseFloat(formData.hr_bpm) - 40) / 60) * 100
+      data.push({ axe: 'FC repos', value: Math.max(Math.min(hrValue, 100), 0), fullMark: 100 })
+    }
+    
+    // Tension artérielle - Normal: 120/80 (moyenne)
+    if (formData.bp_sys && formData.bp_dia) {
+      const bpMean = (parseFloat(formData.bp_sys) + parseFloat(formData.bp_dia)) / 2
+      const bpValue = 100 - Math.abs(bpMean - 90) / 90 * 100
+      data.push({ axe: 'TA', value: Math.max(Math.min(bpValue, 100), 0), fullMark: 100 })
+    }
+    
+    // SpO₂ - Normal: 95-100%
+    if (formData.spo2) {
+      const spo2Value = parseFloat(formData.spo2)
+      data.push({ axe: 'SpO₂', value: Math.min(spo2Value, 100), fullMark: 100 })
+    }
+    
+    // Score global ECG (100 si conclusion présente)
+    if (formData.ecg_conclusion && formData.ecg_conclusion.trim()) {
+      data.push({ axe: 'ECG', value: 100, fullMark: 100 })
+    }
+    
+    return data
+  }
+
+  const getBiologieData = () => {
+    const data = []
+    
+    // Hémoglobine - Normal homme: 13-17 g/dL
+    if (formData.hb_g_dl) {
+      const hbValue = (parseFloat(formData.hb_g_dl) / 17) * 100
+      data.push({ 
+        categorie: 'Hémoglobine', 
+        valeur: Math.min(hbValue, 100),
+        reference: `${formData.hb_g_dl} g/dL`
+      })
+    }
+    
+    // Ferritine - Normal: 30-300 ng/mL
+    if (formData.ferritin_ng_ml) {
+      const ferValue = (parseFloat(formData.ferritin_ng_ml) / 300) * 100
+      data.push({ 
+        categorie: 'Ferritine', 
+        valeur: Math.min(ferValue, 100),
+        reference: `${formData.ferritin_ng_ml} ng/mL`
+      })
+    }
+    
+    // Lipides (HDL) - Normal: >40 mg/dL
+    if (formData.hdl_mg_dl) {
+      const hdlValue = (parseFloat(formData.hdl_mg_dl) / 60) * 100
+      data.push({ 
+        categorie: 'HDL', 
+        valeur: Math.min(hdlValue, 100),
+        reference: `${formData.hdl_mg_dl} mg/dL`
+      })
+    }
+    
+    // Glycémie - Normal: 70-100 mg/dL
+    if (formData.glucose_mg_dl) {
+      const glucoseVal = parseFloat(formData.glucose_mg_dl)
+      const glucoseValue = 100 - Math.abs(glucoseVal - 85) / 85 * 100
+      data.push({ 
+        categorie: 'Glycémie', 
+        valeur: Math.max(Math.min(glucoseValue, 100), 0),
+        reference: `${formData.glucose_mg_dl} mg/dL`
+      })
+    }
+    
+    // Fonction rénale (eGFR) - Normal: >90 mL/min
+    if (formData.egfr_ml_min) {
+      const egfrValue = (parseFloat(formData.egfr_ml_min) / 90) * 100
+      data.push({ 
+        categorie: 'Fonction rénale', 
+        valeur: Math.min(egfrValue, 100),
+        reference: `${formData.egfr_ml_min} mL/min`
+      })
+    }
+    
+    return data
+  }
+
+  const getSignesVitauxData = () => {
+    const data = []
+    
+    if (formData.bp_sys) {
+      data.push({ 
+        parametre: 'TA Systolique', 
+        valeur: parseFloat(formData.bp_sys),
+        min: 90,
+        max: 140,
+        optimal: 120
+      })
+    }
+    
+    if (formData.bp_dia) {
+      data.push({ 
+        parametre: 'TA Diastolique', 
+        valeur: parseFloat(formData.bp_dia),
+        min: 60,
+        max: 90,
+        optimal: 80
+      })
+    }
+    
+    if (formData.hr_bpm) {
+      data.push({ 
+        parametre: 'FC', 
+        valeur: parseFloat(formData.hr_bpm),
+        min: 40,
+        max: 100,
+        optimal: 60
+      })
+    }
+    
+    if (formData.spo2) {
+      data.push({ 
+        parametre: 'SpO₂', 
+        valeur: parseFloat(formData.spo2),
+        min: 90,
+        max: 100,
+        optimal: 98
+      })
+    }
+    
+    if (formData.temperature_c) {
+      data.push({ 
+        parametre: 'Température', 
+        valeur: parseFloat(formData.temperature_c),
+        min: 36,
+        max: 38,
+        optimal: 37
+      })
+    }
+    
+    return data
   }
 
   return (
@@ -466,6 +570,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="mmHg"
             placeholder="120"
             gradient="from-red-500 to-pink-500"
+            value={formData.bp_sys}
+            onChange={(e) => handleChange('bp_sys', e.target.value)}
             required
             min={70}
             max={220}
@@ -477,6 +583,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="mmHg"
             placeholder="80"
             gradient="from-red-500 to-pink-500"
+            value={formData.bp_dia}
+            onChange={(e) => handleChange('bp_dia', e.target.value)}
             required
             min={40}
             max={130}
@@ -488,6 +596,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="bpm"
             placeholder="70"
             gradient="from-orange-500 to-red-500"
+            value={formData.hr_bpm}
+            onChange={(e) => handleChange('hr_bpm', e.target.value)}
             required
             min={30}
             max={220}
@@ -499,6 +609,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="%" 
             placeholder="98" 
             gradient="from-blue-500 to-cyan-500"
+            value={formData.spo2}
+            onChange={(e) => handleChange('spo2', e.target.value)}
             required 
             min={80} 
             max={100} 
@@ -510,6 +622,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="°C"
             placeholder="36.8"
             gradient="from-orange-500 to-yellow-500"
+            value={formData.temperature_c}
+            onChange={(e) => handleChange('temperature_c', e.target.value)}
             required
             min={34}
             max={42}
@@ -602,6 +716,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="%" 
               placeholder="60" 
               gradient="from-rose-500 to-pink-500"
+              value={formData.fevg_percent}
+              onChange={(e) => handleChange('fevg_percent', e.target.value)}
               min={20} 
               max={100} 
             />
@@ -612,6 +728,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mL" 
               placeholder="120"
               gradient="from-pink-500 to-rose-500"
+              value={formData.vtd_vg_ml}
+              onChange={(e) => handleChange('vtd_vg_ml', e.target.value)}
             />
             <ModernFormField 
               label="VTS" 
@@ -620,6 +738,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mL" 
               placeholder="45"
               gradient="from-fuchsia-500 to-pink-500"
+              value={formData.vts_vg_ml}
+              onChange={(e) => handleChange('vts_vg_ml', e.target.value)}
             />
             <ModernFormField 
               label="LV DD" 
@@ -628,6 +748,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mm" 
               placeholder="48"
               gradient="from-purple-500 to-pink-500"
+              value={formData.lv_dd_mm}
+              onChange={(e) => handleChange('lv_dd_mm', e.target.value)}
             />
             <ModernFormField 
               label="LV SD" 
@@ -636,6 +758,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mm" 
               placeholder="32"
               gradient="from-violet-500 to-purple-500"
+              value={formData.lv_sd_mm}
+              onChange={(e) => handleChange('lv_sd_mm', e.target.value)}
             />
             <ModernFormField 
               label="LAVI" 
@@ -644,6 +768,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mL/m²" 
               placeholder="28"
               gradient="from-indigo-500 to-purple-500"
+              value={formData.lavi_ml_m2}
+              onChange={(e) => handleChange('lavi_ml_m2', e.target.value)}
             />
             <ModernFormField 
               label="RAVI" 
@@ -652,6 +778,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mL/m²" 
               placeholder="25"
               gradient="from-blue-500 to-indigo-500"
+              value={formData.ravi_ml_m2}
+              onChange={(e) => handleChange('ravi_ml_m2', e.target.value)}
             />
             <ModernFormField 
               label="TAPSE" 
@@ -660,6 +788,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mm" 
               placeholder="22"
               gradient="from-cyan-500 to-blue-500"
+              value={formData.tapse_mm}
+              onChange={(e) => handleChange('tapse_mm', e.target.value)}
             />
             <ModernFormField 
               label="S'" 
@@ -668,6 +798,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="cm/s" 
               placeholder="12"
               gradient="from-sky-500 to-cyan-500"
+              value={formData.s_prime_cms}
+              onChange={(e) => handleChange('s_prime_cms', e.target.value)}
             />
             <ModernFormField 
               label="PAPs" 
@@ -676,39 +808,51 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
               unit="mmHg" 
               placeholder="25"
               gradient="from-teal-500 to-cyan-500"
+              value={formData.paps_mmhg}
+              onChange={(e) => handleChange('paps_mmhg', e.target.value)}
             />
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2 group">
-              <Label htmlFor="aorte" className="text-sm font-semibold text-slate-700 group-focus-within:text-rose-600 transition-colors">
-                Aorte
+          <div className="grid gap-6 md:grid-cols-3">
+            <ModernFormField 
+              label="Sinus de l'aorte" 
+              icon={Heart}
+              id="aorta-sinus" 
+              unit="mm" 
+              placeholder="32"
+              gradient="from-rose-500 to-pink-500"
+              value={formData.aorta_sinus_mm}
+              onChange={(e) => handleChange('aorta_sinus_mm', e.target.value)}
+              step="0.1"
+            />
+            <ModernFormField 
+              label="Aorte ascendante" 
+              icon={Heart}
+              id="aorta-asc" 
+              unit="mm" 
+              placeholder="35"
+              gradient="from-pink-500 to-rose-500"
+              value={formData.aorta_asc_mm}
+              onChange={(e) => handleChange('aorta_asc_mm', e.target.value)}
+              step="0.1"
+            />
+            <div className="space-y-2 group md:col-span-1">
+              <Label htmlFor="valves" className="text-sm font-semibold text-slate-700 group-focus-within:text-pink-600 transition-colors">
+                Statut des valves
               </Label>
               <Input 
-                id="aorta_status" 
-                placeholder="Normale"
+                id="valve_status" 
+                placeholder="Valves normales..."
                 value={formData.valve_status}
                 onChange={(e) => handleChange('valve_status', e.target.value)}
-                className="h-12 border-2 focus:border-rose-500 focus:ring-rose-500/20 rounded-xl transition-all"
-              />
-            </div>
-            <div className="space-y-2 group">
-              <Label htmlFor="valves" className="text-sm font-semibold text-slate-700 group-focus-within:text-pink-600 transition-colors">
-                Valves
-              </Label>
-              <Input 
-                id="pericardial_effusion" 
-                placeholder="Normales"
-                value={formData.pericardial_effusion}
-                onChange={(e) => handleChange('pericardial_effusion', e.target.value)}
                 className="h-12 border-2 focus:border-pink-500 focus:ring-pink-500/20 rounded-xl transition-all"
               />
             </div>
           </div>
           <div className="space-y-2 group">
             <Label htmlFor="epanchement" className="text-sm font-semibold text-slate-700 group-focus-within:text-rose-600 transition-colors">
-              Épanchement
+              Épanchement péricardique
             </Label>
-            <Select>
+            <Select value={formData.pericardial_effusion} onValueChange={(value) => handleChange('pericardial_effusion', value)}>
               <SelectTrigger id="epanchement" className="h-12 border-2 focus:border-rose-500 focus:ring-rose-500/20 rounded-xl">
                 <SelectValue placeholder="Sélectionner..." />
               </SelectTrigger>
@@ -758,6 +902,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="L" 
             placeholder="4.2" 
             gradient="from-cyan-500 to-blue-500"
+            value={formData.vems}
+            onChange={(e) => handleChange('vems', e.target.value)}
             step="0.1" 
           />
           <ModernFormField 
@@ -767,6 +913,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="L" 
             placeholder="5.1" 
             gradient="from-blue-500 to-indigo-500"
+            value={formData.cvf}
+            onChange={(e) => handleChange('cvf', e.target.value)}
             step="0.1" 
           />
           <ModernFormField 
@@ -776,7 +924,22 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
             unit="%" 
             placeholder="82"
             gradient="from-indigo-500 to-purple-500"
+            value={formData.ratio_vems_cvf}
+            onChange={(e) => handleChange('ratio_vems_cvf', e.target.value)}
           />
+          <div className="space-y-2 md:col-span-3">
+            <Label htmlFor="resp-conclusion" className="text-sm font-semibold text-slate-700">
+              Conclusion fonction respiratoire
+            </Label>
+            <Textarea 
+              id="resp_conclusion" 
+              placeholder="Fonction respiratoire normale..." 
+              value={formData.resp_conclusion}
+              onChange={(e) => handleChange('resp_conclusion', e.target.value)}
+              rows={3}
+              className="border-2 focus:border-cyan-500 focus:ring-cyan-500/20 rounded-xl transition-all resize-none"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -808,6 +971,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="g/dL" 
                 placeholder="15.2" 
                 gradient="from-red-500 to-rose-500"
+                value={formData.hb_g_dl}
+                onChange={(e) => handleChange('hb_g_dl', e.target.value)}
                 step="0.1" 
               />
               <ModernFormField 
@@ -817,6 +982,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="%" 
                 placeholder="45" 
                 gradient="from-rose-500 to-pink-500"
+                value={formData.ht_percent}
+                onChange={(e) => handleChange('ht_percent', e.target.value)}
                 step="0.1" 
               />
               <ModernFormField 
@@ -826,6 +993,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="G/L" 
                 placeholder="7.5" 
                 gradient="from-amber-500 to-orange-500"
+                value={formData.wbc_g_l}
+                onChange={(e) => handleChange('wbc_g_l', e.target.value)}
                 step="0.1" 
               />
               <ModernFormField 
@@ -835,6 +1004,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="G/L" 
                 placeholder="250"
                 gradient="from-orange-500 to-yellow-500"
+                value={formData.platelets_g_l}
+                onChange={(e) => handleChange('platelets_g_l', e.target.value)}
               />
             </div>
           </div>
@@ -852,6 +1023,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="ng/mL" 
                 placeholder="85"
                 gradient="from-orange-500 to-amber-500"
+                value={formData.ferritin_ng_ml}
+                onChange={(e) => handleChange('ferritin_ng_ml', e.target.value)}
               />
               <ModernFormField 
                 label="CRP" 
@@ -860,6 +1033,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="mg/L" 
                 placeholder="2" 
                 gradient="from-red-500 to-orange-500"
+                value={formData.crp_mg_l}
+                onChange={(e) => handleChange('crp_mg_l', e.target.value)}
                 step="0.1" 
               />
             </div>
@@ -878,6 +1053,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="mmol/L" 
                 placeholder="5.2" 
                 gradient="from-purple-500 to-indigo-500"
+                value={formData.glucose_mg_dl}
+                onChange={(e) => handleChange('glucose_mg_dl', e.target.value)}
                 step="0.1" 
               />
               <ModernFormField 
@@ -887,6 +1064,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="%" 
                 placeholder="5.4" 
                 gradient="from-indigo-500 to-blue-500"
+                value={formData.hba1c_percent}
+                onChange={(e) => handleChange('hba1c_percent', e.target.value)}
                 step="0.1" 
               />
               <ModernFormField 
@@ -896,6 +1075,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="mUI/L" 
                 placeholder="2.1" 
                 gradient="from-blue-500 to-cyan-500"
+                value={formData.tsh_mui_l}
+                onChange={(e) => handleChange('tsh_mui_l', e.target.value)}
                 step="0.1" 
               />
             </div>
@@ -914,6 +1095,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="g/L" 
                 placeholder="1.2" 
                 gradient="from-green-500 to-emerald-500"
+                value={formData.ldl_mg_dl}
+                onChange={(e) => handleChange('ldl_mg_dl', e.target.value)}
                 step="0.01" 
               />
               <ModernFormField 
@@ -923,6 +1106,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="g/L" 
                 placeholder="0.6" 
                 gradient="from-emerald-500 to-teal-500"
+                value={formData.hdl_mg_dl}
+                onChange={(e) => handleChange('hdl_mg_dl', e.target.value)}
                 step="0.01" 
               />
               <ModernFormField 
@@ -932,6 +1117,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="g/L" 
                 placeholder="0.9" 
                 gradient="from-teal-500 to-cyan-500"
+                value={formData.tg_mg_dl}
+                onChange={(e) => handleChange('tg_mg_dl', e.target.value)}
                 step="0.01" 
               />
             </div>
@@ -950,6 +1137,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="µmol/L" 
                 placeholder="85"
                 gradient="from-blue-500 to-indigo-500"
+                value={formData.creat_mg_dl}
+                onChange={(e) => handleChange('creat_mg_dl', e.target.value)}
               />
               <ModernFormField 
                 label="DFG" 
@@ -958,6 +1147,8 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 unit="mL/min" 
                 placeholder="95"
                 gradient="from-indigo-500 to-violet-500"
+                value={formData.egfr_ml_min}
+                onChange={(e) => handleChange('egfr_ml_min', e.target.value)}
               />
             </div>
           </div>
@@ -1008,191 +1199,198 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
         </CardContent>
       </Card>
 
-      {/* Graphiques statistiques */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Évolution IMC et Poids */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-purple-500" />
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Évolution IMC</CardTitle>
-                <CardDescription>Historique des 6 derniers mois</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={imcHistoryData}>
-                <defs>
-                  <linearGradient id="imcGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="mois" className="text-xs" stroke="#64748b" />
-                <YAxis domain={[22, 24]} className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #3b82f6',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="imc" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  fill="url(#imcGradient)"
-                  dot={{ fill: '#3b82f6', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Graphiques dynamiques en temps réel */}
+      {(getCardioRadarData().length > 0 || getBiologieData().length > 0 || getSignesVitauxData().length > 0) && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 pt-4">
+            <TrendingUp className="h-6 w-6 text-blue-600" />
+            <h2 className="text-2xl font-bold text-slate-800">Analyses en temps réel</h2>
+          </div>
 
-        {/* Tension artérielle */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-red-500 to-pink-500" />
-          <CardHeader className="bg-gradient-to-r from-red-50 to-pink-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-pink-500 text-white">
-                <Heart className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Tension artérielle</CardTitle>
-                <CardDescription>Évolution systolique/diastolique</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={tensionData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis dataKey="mois" className="text-xs" stroke="#64748b" />
-                <YAxis domain={[60, 140]} className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #ef4444',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="systolique" 
-                  stroke="#ef4444" 
-                  strokeWidth={3}
-                  dot={{ fill: '#ef4444', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                  name="Systolique"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="diastolique" 
-                  stroke="#ec4899" 
-                  strokeWidth={3}
-                  dot={{ fill: '#ec4899', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                  name="Diastolique"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Profil cardiovasculaire (Radar) */}
+            {getCardioRadarData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-rose-500 to-pink-500" />
+                <CardHeader className="bg-gradient-to-r from-rose-50 to-pink-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-rose-500 to-pink-500 text-white">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Profil cardiovasculaire</CardTitle>
+                      <CardDescription>Analyse dynamique des paramètres cardiaques</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={getCardioRadarData()}>
+                      <PolarGrid stroke="#e2e8f0" strokeWidth={2} />
+                      <PolarAngleAxis 
+                        dataKey="axe" 
+                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+                      />
+                      <PolarRadiusAxis 
+                        angle={90} 
+                        domain={[0, 100]} 
+                        tick={{ fill: '#64748b', fontSize: 10 }}
+                      />
+                      <Radar 
+                        name="Performance" 
+                        dataKey="value" 
+                        stroke="#f43f5e" 
+                        fill="#f43f5e" 
+                        fillOpacity={0.5}
+                        strokeWidth={3}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #f43f5e',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value.toFixed(1)}%`, 'Score']}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Bilan biologique global */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500" />
-          <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white">
-                <TestTube className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Bilan biologique</CardTitle>
-                <CardDescription>Score de santé par catégorie</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={biologieData} layout="vertical">
-                <defs>
-                  <linearGradient id="bioGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
-                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.9}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis type="number" domain={[0, 100]} className="text-xs" stroke="#64748b" />
-                <YAxis dataKey="categorie" type="category" width={100} className="text-xs" stroke="#64748b" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #f59e0b',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Bar 
-                  dataKey="valeur" 
-                  fill="url(#bioGradient)"
-                  radius={[0, 8, 8, 0]}
-                  name="Score (%)"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            {/* Bilan biologique */}
+            {getBiologieData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500" />
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                      <TestTube className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Bilan biologique</CardTitle>
+                      <CardDescription>Score de santé par catégorie</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getBiologieData()} layout="vertical">
+                      <defs>
+                        <linearGradient id="bioDynamicGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#f97316" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        type="number" 
+                        domain={[0, 100]} 
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                      />
+                      <YAxis 
+                        dataKey="categorie" 
+                        type="category" 
+                        width={120} 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #f59e0b',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => [
+                          `${value.toFixed(1)}% - ${props.payload.reference}`, 
+                          'Score'
+                        ]}
+                      />
+                      <Bar 
+                        dataKey="valeur" 
+                        fill="url(#bioDynamicGradient)"
+                        radius={[0, 8, 8, 0]}
+                        name="Score (%)"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Radar cardiovasculaire */}
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-rose-500 to-pink-500" />
-          <CardHeader className="bg-gradient-to-r from-rose-50 to-pink-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-rose-500 to-pink-500 text-white">
-                <Activity className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Profil cardiovasculaire</CardTitle>
-                <CardDescription>Vue d&apos;ensemble des paramètres cardiaques</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <RadarChart data={cardioRadarData}>
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="axe" className="text-xs" stroke="#64748b" />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} className="text-xs" stroke="#64748b" />
-                <Radar 
-                  name="Performance" 
-                  dataKey="value" 
-                  stroke="#f43f5e" 
-                  fill="#f43f5e" 
-                  fillOpacity={0.3}
-                  strokeWidth={2}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                    borderRadius: '12px',
-                    border: '2px solid #f43f5e',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+            {/* Signes vitaux */}
+            {getSignesVitauxData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden md:col-span-2">
+                <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-cyan-500" />
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+                      <Heart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Signes vitaux</CardTitle>
+                      <CardDescription>Paramètres physiologiques en temps réel</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getSignesVitauxData()}>
+                      <defs>
+                        <linearGradient id="vitalGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="parametre" 
+                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #3b82f6',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => {
+                          const { optimal, min, max } = props.payload
+                          return [
+                            `Valeur: ${value} | Optimal: ${optimal} | Range: ${min}-${max}`, 
+                            props.payload.parametre
+                          ]
+                        }}
+                      />
+                      <Legend />
+                      <Bar 
+                        dataKey="valeur" 
+                        fill="url(#vitalGradient)"
+                        radius={[8, 8, 0, 0]}
+                        name="Valeur actuelle"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Aptitude */}
       <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
@@ -1310,7 +1508,7 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
       </Card>
 
       {/* Documents et pièces jointes */}
-      {visitId && (
+      {visitId ? (
         <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
           <div className="h-1 w-full bg-gradient-to-r from-[#29BACD] via-[#1A8A9A] to-[#7BD5E1]" />
           <CardHeader className="bg-gradient-to-r from-[#29BACD]/5 to-[#7BD5E1]/5">
@@ -1404,20 +1602,27 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                     <FileText className="h-5 w-5 text-[#29BACD]" />
                     Électrocardiogramme (ECG)
                   </h3>
-                  <FileUpload
-                    entityType="visit_pcma"
-                    entityId={visitId}
-                    category="ecg"
-                    onUploadSuccess={handleUploadSuccess}
-                  />
-                  <div className="mt-4">
-                    <FileList
-                      entityType="visit_pcma"
-                      entityId={visitId}
-                      category="ecg"
-                      refreshTrigger={refreshFiles}
-                    />
-                  </div>
+                  {visitId ? (
+                    <>
+                      <FileUpload
+                        entityType="visit_pcma"
+                        entityId={visitId}
+                        category="ecg"
+                        lockCategory={true}
+                        onUploadSuccess={handleUploadSuccess}
+                      />
+                      <div className="mt-4">
+                        <FileList
+                          entityType="visit_pcma"
+                          entityId={visitId}
+                          category="ecg"
+                          refreshTrigger={refreshFiles}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-amber-600">⚠️ Créez d&apos;abord une visite pour attacher des fichiers ECG</p>
+                  )}
                 </div>
 
                 {/* Échocardiographie */}
@@ -1601,6 +1806,22 @@ export function PCMAForm({ visitId, playerId, moduleSequence, currentModuleIndex
                 </div>
               </TabsContent>
             </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="shadow-lg border-2 border-amber-200 bg-amber-50/50">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-100">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-900">Visite non créée</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Vous devez d&apos;abord créer une visite pour pouvoir attacher des documents.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

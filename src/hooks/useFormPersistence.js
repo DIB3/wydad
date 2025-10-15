@@ -20,7 +20,6 @@ export function useFormPersistence(moduleType, formData, setFormData, visitId) {
     
     const savedData = restoreFormData(moduleType)
     if (savedData) {
-      console.log('📦 Restauration des données du formulaire:', moduleType)
       setFormData(prev => ({
         ...prev,
         ...savedData
@@ -32,7 +31,6 @@ export function useFormPersistence(moduleType, formData, setFormData, visitId) {
   // Écouter l'événement de sauvegarde avant création de visite
   useEffect(() => {
     const handleSaveEvent = (event) => {
-      console.log('💾 Sauvegarde des données du formulaire avant création de visite')
       saveFormData(moduleType, formData)
     }
 

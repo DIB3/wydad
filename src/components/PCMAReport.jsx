@@ -28,7 +28,6 @@ export function PCMAReport({ visitId, playerId, playerData, onClose }) {
         console.error('Erreur lors du chargement des données PCMA:', error)
         // Si le PCMA n'existe pas encore (404), créer un objet vide
         if (error.response?.status === 404) {
-          console.log('Aucune donnée PCMA trouvée, affichage du formulaire vide')
           setPcmaData({}) // Formulaire vide pour remplissage manuel
         } else {
           toast.error('Erreur lors du chargement du rapport')

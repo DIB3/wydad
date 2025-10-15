@@ -31,7 +31,6 @@ export function useReports() {
     if (!socket || typeof socket.on !== 'function') return
 
     const handleUpdate = () => {
-      console.log('📊 Mise à jour des rapports...')
       fetchReports()
     }
 

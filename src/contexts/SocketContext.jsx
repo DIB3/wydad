@@ -27,7 +27,7 @@ export const SocketProvider = ({ children }) => {
       return
     }
 
-    const WS_URL = import.meta.env.VITE_WS_URL || 'https://omnidocteur.ma/api'
+    const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8000'
     const newSocket = io(WS_URL, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,
@@ -35,12 +35,10 @@ export const SocketProvider = ({ children }) => {
     })
 
     newSocket.on('connect', () => {
-      console.log('✅ Socket.IO connected')
       setConnected(true)
     })
 
     newSocket.on('disconnect', () => {
-      console.log('❌ Socket.IO disconnected')
       setConnected(false)
     })
 
@@ -58,14 +56,12 @@ export const SocketProvider = ({ children }) => {
   const joinPlayerRoom = (playerId) => {
     if (socket && connected) {
       socket.emit('joinPlayer', playerId)
-      console.log(`Joined player room: ${playerId}`)
     }
   }
 
   const leavePlayerRoom = (playerId) => {
     if (socket && connected) {
       socket.emit('leavePlayer', playerId)
-      console.log(`Left player room: ${playerId}`)
     }
   }
 

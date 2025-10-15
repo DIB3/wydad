@@ -7,8 +7,8 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, Download, FileText, Plus, TrendingUp, Activity, Heart, Navigation, AlertCircle, Apple, Calendar, Stethoscope, Scale, Target, Flame, Users, FileCheck, Paperclip, History, ExternalLink } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, Download, FileText, Plus, TrendingUp, Activity, Heart, Navigation, AlertCircle, Apple, Calendar, Stethoscope, Scale, Target, Flame, Users, FileCheck, Paperclip, History, ExternalLink, Trash2, Eye, Image, File } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { usePlayer } from '../hooks/usePlayers'
 import { usePlayerPCMA } from '../hooks/usePCMA'
@@ -16,6 +16,9 @@ import { usePlayerImpedance } from '../hooks/useImpedance'
 import { usePlayerGPS } from '../hooks/useGPS'
 import { usePlayerInjuries } from '../hooks/useInjuries'
 import { usePlayerNutrition } from '../hooks/useNutrition'
+import { usePlayerCare } from '../hooks/useCare'
+import { usePlayerSoins } from '../hooks/useSoins'
+import { usePlayerExamensMedicaux } from '../hooks/useExamenMedical'
 import { usePlayerCertificates } from '../hooks/usePlayerCertificates'
 import { usePlayerAttachments } from '../hooks/usePlayerAttachments'
 import { usePlayerAuditLogs } from '../hooks/usePlayerAuditLogs'
@@ -24,38 +27,152 @@ import { useSocket } from '../contexts/SocketContext'
 import certificateService from '../services/certificate.service'
 import { toast } from 'sonner'
 import { CertificateQuickEditDialog } from '../components/CertificateQuickEditDialog'
-
-const imcData = [
-  { date: 'Jan', value: 22.5 },
-  { date: 'Fév', value: 22.7 },
-  { date: 'Mar', value: 22.6 },
-  { date: 'Avr', value: 22.8 },
-  { date: 'Mai', value: 22.9 },
-  { date: 'Juin', value: 22.8 },
-]
-
-const taData = [
-  { date: 'Jan', systolic: 125, diastolic: 75 },
-  { date: 'Fév', systolic: 128, diastolic: 78 },
-  { date: 'Mar', systolic: 126, diastolic: 76 },
-  { date: 'Avr', systolic: 128, diastolic: 78 },
-  { date: 'Mai', systolic: 127, diastolic: 77 },
-  { date: 'Juin', systolic: 128, diastolic: 78 },
-]
+import { FileUpload } from '../components/FileUpload'
+import { FilePreviewDialog } from '../components/FilePreviewDialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import playerService from '../services/player.service'
 
 export default function PlayerDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { player, loading } = usePlayer(id)
-  const { pcmaList, loading: pcmaLoading } = usePlayerPCMA(id)
-  const { impedanceList, loading: impedanceLoading } = usePlayerImpedance(id)
-  const { gpsList, stats: gpsStats, loading: gpsLoading } = usePlayerGPS(id)
-  const { injuriesList, stats: injuryStats, loading: injuriesLoading } = usePlayerInjuries(id)
-  const { nutritionList, stats: nutritionStats, loading: nutritionLoading } = usePlayerNutrition(id)
+
+  // Mapping des modules vers leurs routes
+  const moduleRoutes = {
+    pcma: '/modules/pcma',
+    gps: '/modules/gps',
+    impedance: '/modules/impedance',
+    injury: '/modules/injuries',
+    nutrition: '/modules/nutrition',
+    care: '/modules/care',
+    examen_medical: '/modules/examen_medical',
+    soins: '/modules/soins',
+  }
+
+  // Fonction pour ouvrir une visite
+  const handleOpenVisit = (visitId, module, playerId) => {
+    const route = moduleRoutes[module]
+    if (!route) {
+      console.error('Route non trouvée pour le module:', module)
+      toast.error('Type de visite non supporté')
+      return
+    }
+    
+    navigate(route, {
+      state: {
+        visitId: visitId,
+        playerId: playerId
+      }
+    })
+  }
+  const { pcmaList, loading: _pcmaLoading } = usePlayerPCMA(id)
+  const { impedanceList, loading: _impedanceLoading } = usePlayerImpedance(id)
+  const { gpsList, stats: gpsStats, loading: _gpsLoading } = usePlayerGPS(id)
+  const { injuriesList, stats: injuryStats, loading: _injuriesLoading } = usePlayerInjuries(id)
+  const { nutritionList, stats: nutritionStats, loading: _nutritionLoading } = usePlayerNutrition(id)
+  const { careList, loading: _careLoading } = usePlayerCare(id)
+  const { soinsList, loading: _soinsLoading } = usePlayerSoins(id)
+  const { examensList, loading: _examensLoading } = usePlayerExamensMedicaux(id)
   const { certificates, loading: certificatesLoading, refetch: refetchCertificates } = usePlayerCertificates(id)
-  const { attachments, loading: attachmentsLoading } = usePlayerAttachments(id)
+  const { attachments, loading: attachmentsLoading, refetch: refetchAttachments } = usePlayerAttachments(id)
   const { auditLogs, loading: auditLogsLoading } = usePlayerAuditLogs(id)
 
+  // Debug: Afficher les compteurs
+  useEffect(() => {
+  }, [id, pcmaList, impedanceList, gpsList, injuriesList, nutritionList, careList, soinsList, examensList, certificates, attachments])
+
   const [certificateDialogOpen, setCertificateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editFormData, setEditFormData] = useState({})
+  const [editLoading, setEditLoading] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
+
+  // Debug: Suivre l'état du dialogue d'upload
+  useEffect(() => {
+  }, [uploadDialogOpen])
+
+  // Debug: Suivre les changements d'attachments
+  useEffect(() => {
+  }, [attachments])
+
+  // Charger les données du joueur dans le formulaire d'édition
+  useEffect(() => {
+    if (player && editDialogOpen) {
+      setEditFormData({
+        first_name: player.first_name || '',
+        last_name: player.last_name || '',
+        sex: player.sex || '',
+        birth_date: player.birth_date || '',
+        nationality: player.nationality || '',
+        club: player.club || '',
+        country: player.country || '',
+        position: player.position || '',
+        dominant_foot: player.dominant_foot || '',
+        height_cm: player.height_cm || '',
+        weight_kg: player.weight_kg || '',
+        licence_id: player.licence_id || '',
+        allergies: player.allergies || '',
+        notes: player.notes || ''
+      })
+    }
+  }, [player, editDialogOpen])
+
+  const handleEditChange = (field, value) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    setEditLoading(true)
+
+    try {
+      const dataToSend = {
+        ...editFormData,
+        height_cm: editFormData.height_cm ? parseFloat(editFormData.height_cm) : null,
+        weight_kg: editFormData.weight_kg ? parseFloat(editFormData.weight_kg) : null
+      }
+
+      Object.keys(dataToSend).forEach(key => {
+        if (dataToSend[key] === '') {
+          dataToSend[key] = null
+        }
+      })
+
+      await playerService.update(id, dataToSend)
+      toast.success('Joueur modifié avec succès !')
+      setEditDialogOpen(false)
+      window.location.reload() // Recharger pour voir les changements
+    } catch (error) {
+      console.error('Erreur modification joueur:', error)
+      toast.error(error.response?.data?.error || 'Erreur lors de la modification')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleteLoading(true)
+    try {
+      await playerService.delete(id)
+      toast.success('Joueur supprimé avec succès !')
+      setDeleteDialogOpen(false)
+      navigate('/players') // Retourner à la liste des joueurs
+    } catch (error) {
+      console.error('Erreur suppression joueur:', error)
+      toast.error(error.response?.data?.error || 'Erreur lors de la suppression')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   // Récupérer le dernier certificat
   const latestCertificate = certificates && certificates.length > 0 
@@ -77,6 +194,38 @@ export default function PlayerDetailPage() {
   const handleCertificateSuccess = () => {
     refetchCertificates()
     toast.dismiss()
+  }
+
+  // Gérer les actions sur les pièces jointes
+  const handleViewAttachment = (attachment) => {
+    setPreviewFile(attachment)
+    setShowPreview(true)
+  }
+
+  const handleDownloadAttachment = async (attachment) => {
+    try {
+      const link = document.createElement('a')
+      link.href = `http://localhost:8000/attachments/${attachment.id}/download`
+      link.download = attachment.original_filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast.success('Téléchargement démarré')
+    } catch (error) {
+      console.error('❌ [Attachment] Erreur téléchargement:', error)
+      toast.error('Erreur lors du téléchargement')
+    }
+  }
+
+  const handleUploadSuccess = () => {
+    refetchAttachments()
+    setUploadDialogOpen(false)
+    toast.success('Fichier uploadé avec succès !')
+    
+    // Force le rafraîchissement après un court délai
+    setTimeout(() => {
+      refetchAttachments()
+    }, 500)
   }
 
   const { joinPlayerRoom, leavePlayerRoom } = useSocket()
@@ -112,11 +261,9 @@ export default function PlayerDetailPage() {
           <AppHeader />
           <main className="flex-1 space-y-6 p-6">
             {/* Back Button */}
-            <Button variant="ghost" asChild className="gap-2">
-              <Link to="/players">
+            <Button variant="ghost" onClick={() => navigate('/players')} className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Retour aux joueurs
-              </Link>
             </Button>
 
             {/* Player Header */}
@@ -154,7 +301,7 @@ export default function PlayerDetailPage() {
                       <FileCheck className="h-5 w-5" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">État d'Aptitude Médical</CardTitle>
+                      <CardTitle className="text-lg">État d&apos;Aptitude Médical</CardTitle>
                       <CardDescription>
                         {latestCertificate 
                           ? `Dernière mise à jour le ${new Date(latestCertificate.valid_from || latestCertificate.issue_date).toLocaleDateString('fr-FR')}`
@@ -226,7 +373,7 @@ export default function PlayerDetailPage() {
               open={certificateDialogOpen}
               onOpenChange={setCertificateDialogOpen}
               playerId={id}
-              currentCertificate={latestCertificate}
+              currentCertificate={null}
               onSuccess={handleCertificateSuccess}
             />
 
@@ -247,6 +394,7 @@ export default function PlayerDetailPage() {
                 <Card className="shadow-xl border-none backdrop-blur-sm bg-gradient-to-br from-white to-slate-50">
                   <div className="h-2 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
                   <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+                    <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg">
                         <Users className="h-6 w-6" />
@@ -255,6 +403,15 @@ export default function PlayerDetailPage() {
                         <CardTitle className="text-2xl">Informations Complètes</CardTitle>
                         <CardDescription className="text-base">Toutes les données du joueur</CardDescription>
                       </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="gap-2 border-2 border-blue-200 hover:bg-blue-50 hover:border-blue-400"
+                        onClick={() => setEditDialogOpen(true)}
+                      >
+                        <FileText className="h-4 w-4" />
+                        Modifier
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="p-8">
@@ -386,7 +543,7 @@ export default function PlayerDetailPage() {
                 </Card>
 
                 {/* Modules Stats Cards */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   {/* PCMA Stats */}
                   <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
                     <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-purple-500" />
@@ -462,6 +619,54 @@ export default function PlayerDetailPage() {
                         <div>
                           <p className="text-2xl font-bold">{nutritionList.length}</p>
                           <p className="text-xs text-muted-foreground">Plans nutrition</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Care Stats */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                          <Stethoscope className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{careList?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">Séances Care</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Soins Stats */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-teal-500 to-cyan-500" />
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-500 text-white">
+                          <Heart className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{soinsList?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">Soins</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Examens Médicaux Stats */}
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-indigo-500 to-purple-500" />
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
+                          <FileCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{examensList?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">Examens médicaux</p>
                         </div>
                       </div>
                     </CardContent>
@@ -662,12 +867,357 @@ export default function PlayerDetailPage() {
               {/* Visits Tab */}
               <TabsContent value="visits" className="space-y-6">
                 {/* Message si aucune visite */}
-                {pcmaList.length === 0 && impedanceList.length === 0 && gpsList.length === 0 && injuriesList.length === 0 && nutritionList.length === 0 && (
+                {(pcmaList?.length || 0) === 0 && (impedanceList?.length || 0) === 0 && (gpsList?.length || 0) === 0 && (injuriesList?.length || 0) === 0 && (nutritionList?.length || 0) === 0 && (careList?.length || 0) === 0 && (soinsList?.length || 0) === 0 && (examensList?.length || 0) === 0 && (
                   <Card>
                     <CardContent className="py-12 text-center">
                       <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                       <p className="text-lg font-medium text-muted-foreground">Aucune visite enregistrée</p>
                       <p className="text-sm text-muted-foreground mt-2">Les données des visites du joueur apparaîtront ici</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Toutes les visites - Vue d'ensemble */}
+                {((pcmaList?.length || 0) > 0 || (impedanceList?.length || 0) > 0 || (gpsList?.length || 0) > 0 || (injuriesList?.length || 0) > 0 || (nutritionList?.length || 0) > 0 || (careList?.length || 0) > 0 || (soinsList?.length || 0) > 0 || (examensList?.length || 0) > 0) && (
+                  <Card className="shadow-lg border-none backdrop-blur-sm bg-gradient-to-br from-white to-slate-50 overflow-hidden">
+                    <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+                    <CardHeader className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg">
+                            <Calendar className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-xl">Toutes les visites</CardTitle>
+                            <CardDescription className="text-base">
+                              {(pcmaList?.length || 0) + (impedanceList?.length || 0) + (gpsList?.length || 0) + (injuriesList?.length || 0) + (nutritionList?.length || 0) + (careList?.length || 0) + (soinsList?.length || 0) + (examensList?.length || 0)} visites au total
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-lg px-4 py-2">
+                          {(pcmaList?.length || 0) + (impedanceList?.length || 0) + (gpsList?.length || 0) + (injuriesList?.length || 0) + (nutritionList?.length || 0) + (careList?.length || 0) + (soinsList?.length || 0) + (examensList?.length || 0)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Module</TableHead>
+                            <TableHead>Statut</TableHead>
+                            <TableHead>Détails</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {/* PCMA Visits */}
+                          {(pcmaList || []).map((pcma) => (
+                            <TableRow key={`pcma-${pcma.id}`} className="hover:bg-blue-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {pcma.visit?.visit_date ? new Date(pcma.visit.visit_date).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                                  <Stethoscope className="h-3 w-3 mr-1" />
+                                  PCMA
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {pcma.aptitude ? <StatusBadge status={pcma.aptitude} /> : <Badge variant="outline">N/A</Badge>}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                IMC: {pcma.bmi || 'N/A'} • FC: {pcma.hr_bpm || 'N/A'} bpm
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(pcma.visit_id, 'pcma', id)}
+                                  className="gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          
+                          {/* Impedance Visits */}
+                          {(impedanceList || []).map((imp) => (
+                            <TableRow key={`impedance-${imp.id}`} className="hover:bg-purple-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {imp.visit?.visit_date ? new Date(imp.visit.visit_date).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                                  <Scale className="h-3 w-3 mr-1" />
+                                  Impédance
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">Mesure</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                Poids: {imp.weight_kg || 'N/A'} kg • MG: {imp.body_fat_percent || 'N/A'}%
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(imp.visit_id, 'impedance', id)}
+                                  className="gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* GPS Visits */}
+                          {(gpsList || []).map((gps) => (
+                            <TableRow key={`gps-${gps.id}`} className="hover:bg-green-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {gps.visit?.visit_date ? new Date(gps.visit.visit_date).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                                  <Navigation className="h-3 w-3 mr-1" />
+                                  GPS
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{gps.session_type || 'Session'}</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {gps.distance_m ? `${(gps.distance_m / 1000).toFixed(1)} km` : 'N/A'} • Vmax: {gps.vmax_kmh || 'N/A'} km/h
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(gps.visit_id, 'gps', id)}
+                                  className="gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* Injuries Visits */}
+                          {(injuriesList || []).map((injury) => (
+                            <TableRow key={`injury-${injury.id}`} className="hover:bg-red-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {injury.injury_date ? new Date(injury.injury_date).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-red-500 to-orange-500 text-white">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Blessure
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={
+                                  injury.severity === 'legere' ? 'success' : 
+                                  injury.severity === 'moderee' ? 'warning' : 
+                                  'destructive'
+                                }>
+                                  {injury.severity || 'N/A'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {injury.type || 'N/A'} • {injury.location || 'N/A'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    // Les injuries ont visit_id car c'est retourné par getByPlayerId
+                                    const visitIdToUse = injury.visit_id || injury.visit?.id
+                                    navigate('/modules/injuries', { state: { visitId: visitIdToUse, playerId: id } })
+                                  }}
+                                  className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* Nutrition Visits */}
+                          {(nutritionList || []).map((nutrition) => (
+                            <TableRow key={`nutrition-${nutrition.id}`} className="hover:bg-yellow-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {nutrition.visit?.visit_date ? new Date(nutrition.visit.visit_date).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
+                                  <Apple className="h-3 w-3 mr-1" />
+                                  Nutrition
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">Plan</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {nutrition.kcal_target || 'N/A'} kcal • {nutrition.meal_count || 'N/A'} repas
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(nutrition.visit_id, 'nutrition', id)}
+                                  className="gap-2 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* Care Visits */}
+                          {(careList || []).map((care) => (
+                            <TableRow key={`care-${care.id}`} className="hover:bg-cyan-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {care.care_date ? new Date(care.care_date).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
+                                  <Stethoscope className="h-3 w-3 mr-1" />
+                                  Care
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{care.care_type || 'Soins'}</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {care.duration_minutes ? `${care.duration_minutes} min` : 'N/A'} • {care.care_provider || 'N/A'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(care.visit_id, 'care', id)}
+                                  className="gap-2 text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* Soins Visits */}
+                          {(soinsList || []).map((soin) => (
+                            <TableRow key={`soin-${soin.id}`} className="hover:bg-teal-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {soin.date_soin ? new Date(soin.date_soin).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white">
+                                  <Heart className="h-3 w-3 mr-1" />
+                                  Soins
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{soin.type_soin || 'Traitement'}</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {soin.zone_concernee || 'N/A'} • {soin.resultat || 'En cours'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(soin.visit_id, 'soins', id)}
+                                  className="gap-2 text-teal-600 hover:text-teal-700 hover:bg-teal-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* Examens Médicaux */}
+                          {(examensList || []).map((examen) => (
+                            <TableRow key={`examen-${examen.id}`} className="hover:bg-indigo-50/50 transition-colors">
+                              <TableCell className="font-medium">
+                                {examen.date_examen ? new Date(examen.date_examen).toLocaleDateString('fr-FR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                }) : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                                  <FileCheck className="h-3 w-3 mr-1" />
+                                  Examen
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{examen.type_examen || 'Médical'}</Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {examen.medecin || 'N/A'} • {examen.resultat || 'En attente'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleOpenVisit(examen.visit_id, 'examen_medical', id)}
+                                  className="gap-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </CardContent>
                   </Card>
                 )}
@@ -917,16 +1467,26 @@ export default function PlayerDetailPage() {
               </TabsContent>
 
               <TabsContent value="charts" className="space-y-6">
-                {/* PCMA Charts - Toujours affichés */}
+                {/* Message si aucune donnée */}
+                {(pcmaList?.length || 0) === 0 && (impedanceList?.length || 0) === 0 && (gpsList?.length || 0) === 0 && (nutritionList?.length || 0) === 0 && (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                      <p className="text-lg font-medium text-muted-foreground">Aucune donnée pour les courbes</p>
+                      <p className="text-sm text-muted-foreground mt-2">Les courbes d&apos;évolution apparaîtront ici une fois les données disponibles</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* PCMA Charts - Affichés uniquement si il y a des données */}
+                {pcmaList.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Stethoscope className="h-5 w-5" />
                     Évolutions PCMA
-                    {pcmaList.length > 0 && (
                       <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                         {pcmaList.length} mesures
                       </Badge>
-                    )}
                   </h3>
                   <div className="grid gap-6 md:grid-cols-2">
                     {/* IMC Evolution */}
@@ -939,22 +1499,17 @@ export default function PlayerDetailPage() {
                           </div>
                           <div>
                             <CardTitle className="text-lg">Évolution IMC</CardTitle>
-                            <CardDescription>
-                              {pcmaList.length === 0 ? 'En attente de données' : `${pcmaList.length} mesures`}
-                            </CardDescription>
+                            <CardDescription>{pcmaList.length} mesures</CardDescription>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
                         <ResponsiveContainer width="100%" height={250}>
-                          <LineChart data={pcmaList.length === 0 
-                            ? [{ date: 'Début', imc: 0, poids: 0 }] 
-                            : pcmaList.map((pcma, idx) => ({
+                          <LineChart data={pcmaList.map((pcma) => ({
                                 date: new Date(pcma.visit?.visit_date).toLocaleDateString('fr-FR', { month: 'short' }),
                                 imc: pcma.bmi,
                                 poids: pcma.weight_kg
-                              })).reverse()
-                          }>
+                          })).reverse()}>
                               <defs>
                                 <linearGradient id="imcGradientPlayer" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -996,22 +1551,17 @@ export default function PlayerDetailPage() {
                           </div>
                           <div>
                             <CardTitle className="text-lg">Tension artérielle</CardTitle>
-                            <CardDescription>
-                              {pcmaList.length === 0 ? 'En attente de données' : 'Historique TA'}
-                            </CardDescription>
+                            <CardDescription>Historique TA</CardDescription>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
                         <ResponsiveContainer width="100%" height={250}>
-                          <LineChart data={pcmaList.length === 0 
-                            ? [{ date: 'Début', systolique: 0, diastolique: 0 }] 
-                            : pcmaList.map((pcma) => ({
+                          <LineChart data={pcmaList.map((pcma) => ({
                                 date: new Date(pcma.visit?.visit_date).toLocaleDateString('fr-FR', { month: 'short' }),
                                 systolique: pcma.bp_sys,
                                 diastolique: pcma.bp_dia
-                              })).reverse()
-                          }>
+                          })).reverse()}>
                               <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
                               <XAxis dataKey="date" className="text-xs" stroke="#64748b" />
                               <YAxis domain={[60, 150]} className="text-xs" stroke="#64748b" />
@@ -1032,17 +1582,17 @@ export default function PlayerDetailPage() {
                       </Card>
                   </div>
                 </div>
+                )}
 
-                {/* Impedance Charts - Toujours affichés */}
+                {/* Impedance Charts - Affichés uniquement si il y a des données */}
+                {impedanceList.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Scale className="h-5 w-5" />
                     Évolutions Impédancemétrie
-                    {impedanceList.length > 0 && (
                       <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                         {impedanceList.length} mesures
                       </Badge>
-                    )}
                   </h3>
                   <div className="grid gap-6 md:grid-cols-2">
                     {/* Weight Evolution */}
@@ -1055,22 +1605,17 @@ export default function PlayerDetailPage() {
                           </div>
                           <div>
                             <CardTitle className="text-lg">Évolution du poids</CardTitle>
-                            <CardDescription>
-                              {impedanceList.length === 0 ? 'En attente de données' : `${impedanceList.length} mesures`}
-                            </CardDescription>
+                            <CardDescription>{impedanceList.length} mesures</CardDescription>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
                         <ResponsiveContainer width="100%" height={250}>
-                          <LineChart data={impedanceList.length === 0 
-                            ? [{ date: 'Début', poids: 0, masseMaigre: 0 }] 
-                            : impedanceList.map((imp) => ({
+                          <LineChart data={impedanceList.map((imp) => ({
                                 date: new Date(imp.visit?.visit_date).toLocaleDateString('fr-FR', { month: 'short' }),
                                 poids: imp.weight_kg,
                                 masseMaigre: imp.lean_mass_kg
-                              })).reverse()
-                          }>
+                          })).reverse()}>
                               <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
                               <XAxis dataKey="date" className="text-xs" stroke="#64748b" />
                               <YAxis className="text-xs" stroke="#64748b" />
@@ -1100,22 +1645,17 @@ export default function PlayerDetailPage() {
                           </div>
                           <div>
                             <CardTitle className="text-lg">Composition corporelle</CardTitle>
-                            <CardDescription>
-                              {impedanceList.length === 0 ? 'En attente de données' : 'Dernière mesure'}
-                            </CardDescription>
+                            <CardDescription>Dernière mesure</CardDescription>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
                         <ResponsiveContainer width="100%" height={250}>
-                          <BarChart data={impedanceList.length === 0 
-                            ? [{ name: 'Actuel', masseGrasse: 0, masseMaigre: 0 }] 
-                            : [{
+                          <BarChart data={[{
                                 name: 'Actuel',
                                 masseGrasse: impedanceList[0].body_fat_percent,
                                 masseMaigre: 100 - (impedanceList[0].body_fat_percent || 0)
-                              }]
-                          }>
+                          }]}>
                               <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
                               <XAxis dataKey="name" className="text-xs" stroke="#64748b" />
                               <YAxis className="text-xs" stroke="#64748b" />
@@ -1136,17 +1676,17 @@ export default function PlayerDetailPage() {
                       </Card>
                   </div>
                 </div>
+                )}
 
-                {/* GPS Charts - Toujours affichés */}
+                {/* GPS Charts - Affichés uniquement si il y a des données */}
+                {gpsList.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Navigation className="h-5 w-5" />
                     Évolutions GPS
-                    {gpsList.length > 0 && (
                       <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
                         {gpsList.length} sessions
                       </Badge>
-                    )}
                   </h3>
                   <div className="grid gap-6 md:grid-cols-2">
                     {/* Distance Evolution */}
@@ -1159,22 +1699,17 @@ export default function PlayerDetailPage() {
                           </div>
                           <div>
                             <CardTitle className="text-lg">Évolution des distances</CardTitle>
-                            <CardDescription>
-                              {gpsList.length === 0 ? 'En attente de données' : `${gpsList.length} sessions`}
-                            </CardDescription>
+                            <CardDescription>{gpsList.length} sessions</CardDescription>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
                         <ResponsiveContainer width="100%" height={250}>
-                          <AreaChart data={gpsList.length === 0 
-                            ? [{ session: 'S1', distance: 0, hid: 0 }] 
-                            : gpsList.map((gps, idx) => ({
+                          <AreaChart data={gpsList.map((gps, idx) => ({
                                 session: `S${idx + 1}`,
                                 distance: (gps.distance_m / 1000).toFixed(1),
                                 hid: (gps.hid_m / 1000).toFixed(1)
-                              })).reverse()
-                          }>
+                          })).reverse()}>
                               <defs>
                                 <linearGradient id="distanceGradientPlayer" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -1208,22 +1743,17 @@ export default function PlayerDetailPage() {
                           </div>
                           <div>
                             <CardTitle className="text-lg">Vitesses</CardTitle>
-                            <CardDescription>
-                              {gpsList.length === 0 ? 'En attente de données' : 'Max et moyenne'}
-                            </CardDescription>
+                            <CardDescription>Max et moyenne</CardDescription>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
                         <ResponsiveContainer width="100%" height={250}>
-                          <LineChart data={gpsList.length === 0 
-                            ? [{ session: 'S1', vmax: 0, vmoy: 0 }] 
-                            : gpsList.map((gps, idx) => ({
+                          <LineChart data={gpsList.map((gps, idx) => ({
                                 session: `S${idx + 1}`,
                                 vmax: gps.vmax_kmh,
                                 vmoy: gps.avg_speed_kmh
-                              })).reverse()
-                          }>
+                          })).reverse()}>
                               <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
                               <XAxis dataKey="session" className="text-xs" stroke="#64748b" />
                               <YAxis className="text-xs" stroke="#64748b" />
@@ -1244,6 +1774,7 @@ export default function PlayerDetailPage() {
                       </Card>
                   </div>
                 </div>
+                )}
 
                 {/* Injuries Charts - Affichés si des données existent */}
                 {injuriesList.length > 0 && (
@@ -1390,7 +1921,7 @@ export default function PlayerDetailPage() {
                         </CardHeader>
                         <CardContent className="p-6">
                           <ResponsiveContainer width="100%" height={250}>
-                            <LineChart data={nutritionList.map((nutrition, idx) => ({
+                            <LineChart data={nutritionList.map((nutrition) => ({
                               date: new Date(nutrition.visit?.visit_date).toLocaleDateString('fr-FR', { month: 'short' }),
                               calories: nutrition.kcal_target
                             })).reverse()}>
@@ -1472,7 +2003,7 @@ export default function PlayerDetailPage() {
                           <CardDescription>{certificates.length} certificat(s)</CardDescription>
                         </div>
                       </div>
-                      <Button className="gap-2">
+                      <Button className="gap-2" onClick={() => setCertificateDialogOpen(true)}>
                         <Plus className="h-4 w-4" />
                         Nouveau certificat
                       </Button>
@@ -1487,10 +2018,12 @@ export default function PlayerDetailPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Date d'émission</TableHead>
-                            <TableHead>Date d'expiration</TableHead>
-                            <TableHead>Statut</TableHead>
+                            <TableHead>Statut d&apos;aptitude</TableHead>
+                            <TableHead>Médecin</TableHead>
+                            <TableHead>Date de début</TableHead>
+                            <TableHead>Date de fin</TableHead>
+                            <TableHead>Validité</TableHead>
+                            <TableHead>Restrictions</TableHead>
                             <TableHead>Fichier</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
@@ -1498,19 +2031,35 @@ export default function PlayerDetailPage() {
                         <TableBody>
                           {certificates.map((cert) => (
                             <TableRow key={cert.id}>
-                              <TableCell className="font-medium">{cert.type || 'Certificat médical'}</TableCell>
-                              <TableCell>
-                                {cert.issue_date ? new Date(cert.issue_date).toLocaleDateString('fr-FR') : '-'}
+                              <TableCell className="font-medium">
+                                {cert.status === 'APTE' ? (
+                                  <Badge className="bg-green-500 text-white">✅ Apte</Badge>
+                                ) : cert.status === 'APTE_RESTRICTIONS' ? (
+                                  <Badge className="bg-yellow-500 text-white">⚠️ Apte avec restrictions</Badge>
+                                ) : cert.status === 'TEMP_INAPTE' ? (
+                                  <Badge className="bg-orange-500 text-white">🕒 Temporairement inapte</Badge>
+                                ) : cert.status === 'INAPTE' ? (
+                                  <Badge variant="destructive">❌ Inapte</Badge>
+                                ) : 'N/A'}
+                              </TableCell>
+                              <TableCell className="font-medium text-sm">
+                                {cert.physician_name || '-'}
                               </TableCell>
                               <TableCell>
-                                {cert.expiry_date ? new Date(cert.expiry_date).toLocaleDateString('fr-FR') : '-'}
+                                {cert.valid_from ? new Date(cert.valid_from).toLocaleDateString('fr-FR') : '-'}
                               </TableCell>
                               <TableCell>
-                                {cert.expiry_date && new Date(cert.expiry_date) < new Date() ? (
+                                {cert.valid_until ? new Date(cert.valid_until).toLocaleDateString('fr-FR') : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {cert.valid_until && new Date(cert.valid_until) < new Date() ? (
                                   <Badge variant="destructive">Expiré</Badge>
                                 ) : (
-                                  <Badge variant="success" className="bg-green-500">Valide</Badge>
+                                  <Badge className="bg-green-500 text-white">Valide</Badge>
                                 )}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                                {cert.restrictions || '-'}
                               </TableCell>
                               <TableCell>
                                 {cert.pdf_attachment_id && (
@@ -1541,24 +2090,26 @@ export default function PlayerDetailPage() {
               </TabsContent>
 
               <TabsContent value="attachments">
-                <Card>
+                  <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-purple-100">
                           <Paperclip className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div>
+                            </div>
+                            <div>
                           <CardTitle>Pièces jointes</CardTitle>
                           <CardDescription>{attachments.length} fichier(s)</CardDescription>
-                        </div>
-                      </div>
-                      <Button className="gap-2">
+                            </div>
+                          </div>
+                      <Button className="gap-2" onClick={() => {
+                        setUploadDialogOpen(true)
+                      }}>
                         <Plus className="h-4 w-4" />
                         Ajouter un fichier
                       </Button>
-                    </div>
-                  </CardHeader>
+                        </div>
+                      </CardHeader>
                   <CardContent>
                     {attachmentsLoading ? (
                       <p className="text-center text-muted-foreground py-8">Chargement...</p>
@@ -1566,50 +2117,79 @@ export default function PlayerDetailPage() {
                       <p className="text-center text-muted-foreground py-8">Aucune pièce jointe pour le moment.</p>
                     ) : (
                       <div className="grid gap-3">
-                        {attachments.map((attachment) => (
-                          <div key={attachment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-slate-100">
-                                <FileText className="h-5 w-5 text-slate-600" />
-                              </div>
-                              <div>
-                                <p className="font-medium">{attachment.original_filename || 'Fichier'}</p>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <span>{attachment.category || 'General'}</span>
-                                  {attachment.file_size && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{(attachment.file_size / 1024).toFixed(1)} KB</span>
-                                    </>
-                                  )}
-                                  {attachment.uploaded_at && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{new Date(attachment.uploaded_at).toLocaleDateString('fr-FR')}</span>
-                                    </>
+                        {attachments.map((attachment) => {
+                          const isImage = attachment.mime_type?.startsWith('image/')
+                          const isPDF = attachment.mime_type === 'application/pdf'
+                          
+                          return (
+                            <div key={attachment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors group">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className={`p-2 rounded-lg ${
+                                  isImage ? 'bg-blue-100' :
+                                  isPDF ? 'bg-red-100' :
+                                  'bg-slate-100'
+                                }`}>
+                                  {isImage ? (
+                                    <Image className={`h-5 w-5 ${isImage ? 'text-blue-600' : ''}`} />
+                                  ) : isPDF ? (
+                                    <FileText className="h-5 w-5 text-red-600" />
+                                  ) : (
+                                    <File className="h-5 w-5 text-slate-600" />
                                   )}
                                 </div>
-                                {attachment.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{attachment.description}</p>
-                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{attachment.original_filename || 'Fichier'}</p>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                                    <Badge variant="outline" className="text-xs">
+                                      {attachment.category || 'General'}
+                                    </Badge>
+                                    {attachment.size_bytes && (
+                                      <>
+                                    <span>•</span>
+                                        <span>{(attachment.size_bytes / 1024).toFixed(1)} KB</span>
+                                      </>
+                                    )}
+                                    {attachment.uploaded_at && (
+                                      <>
+                                        <span>•</span>
+                                        <span>{new Date(attachment.uploaded_at).toLocaleDateString('fr-FR')}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {attachment.description && (
+                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{attachment.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-2 hover:bg-blue-50 hover:text-blue-600"
+                                  onClick={() => handleViewAttachment(attachment)}
+                                  title="Voir le fichier"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Voir
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-2 hover:bg-green-50 hover:text-green-600"
+                                  onClick={() => handleDownloadAttachment(attachment)}
+                                  title="Télécharger le fichier"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Télécharger
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm" className="gap-2">
-                                <ExternalLink className="h-4 w-4" />
-                                Voir
-                              </Button>
-                              <Button variant="ghost" size="sm" className="gap-2">
-                                <Download className="h-4 w-4" />
-                                Télécharger
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          )
+                        })}
+                        </div>
                     )}
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
               </TabsContent>
 
               <TabsContent value="audit">
@@ -1620,7 +2200,7 @@ export default function PlayerDetailPage() {
                         <History className="h-5 w-5 text-orange-600" />
                       </div>
                       <div>
-                        <CardTitle>Journal d'audit</CardTitle>
+                        <CardTitle>Journal d&apos;audit</CardTitle>
                         <CardDescription>Historique des modifications - {auditLogs.length} entrée(s)</CardDescription>
                       </div>
                     </div>
@@ -1679,6 +2259,293 @@ export default function PlayerDetailPage() {
                 </Card>
               </TabsContent>
             </Tabs>
+
+            {/* Dialogue de modification du joueur */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl flex items-center gap-2">
+                    <FileText className="h-6 w-6" />
+                    Modifier le joueur
+                  </DialogTitle>
+                  <DialogDescription>
+                    Modifiez les informations du joueur {player?.first_name} {player?.last_name}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleEditSubmit} className="space-y-6 py-4">
+                  {/* Informations de base */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-blue-700 flex items-center gap-2">
+                      <span className="text-xl">👤</span>
+                      Informations de base
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_first_name">Prénom <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="edit_first_name"
+                          value={editFormData.first_name || ''}
+                          onChange={(e) => handleEditChange('first_name', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_last_name">Nom <span className="text-destructive">*</span></Label>
+                        <Input
+                          id="edit_last_name"
+                          value={editFormData.last_name || ''}
+                          onChange={(e) => handleEditChange('last_name', e.target.value)}
+                          required
+                        />
+        </div>
+      </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_sex">Sexe</Label>
+                        <Select value={editFormData.sex || ''} onValueChange={(value) => handleEditChange('sex', value)}>
+                          <SelectTrigger id="edit_sex">
+                            <SelectValue placeholder="Sélectionner..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="M">Homme</SelectItem>
+                            <SelectItem value="F">Femme</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_birth_date">Date de naissance</Label>
+                        <Input
+                          id="edit_birth_date"
+                          type="date"
+                          value={editFormData.birth_date || ''}
+                          onChange={(e) => handleEditChange('birth_date', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_position">Poste</Label>
+                        <Select value={editFormData.position || ''} onValueChange={(value) => handleEditChange('position', value)}>
+                          <SelectTrigger id="edit_position">
+                            <SelectValue placeholder="Sélectionner..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Gardien">Gardien</SelectItem>
+                            <SelectItem value="Défenseur">Défenseur</SelectItem>
+                            <SelectItem value="Milieu">Milieu</SelectItem>
+                            <SelectItem value="Ailier">Ailier</SelectItem>
+                            <SelectItem value="Attaquant">Attaquant</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_dominant_foot">Pied dominant</Label>
+                        <Select value={editFormData.dominant_foot || ''} onValueChange={(value) => handleEditChange('dominant_foot', value)}>
+                          <SelectTrigger id="edit_dominant_foot">
+                            <SelectValue placeholder="Sélectionner..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Droit">Droit</SelectItem>
+                            <SelectItem value="Gauche">Gauche</SelectItem>
+                            <SelectItem value="Ambidextre">Ambidextre</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_height_cm">Taille (cm)</Label>
+                        <Input
+                          id="edit_height_cm"
+                          type="number"
+                          step="0.1"
+                          value={editFormData.height_cm || ''}
+                          onChange={(e) => handleEditChange('height_cm', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_weight_kg">Poids (kg)</Label>
+                        <Input
+                          id="edit_weight_kg"
+                          type="number"
+                          step="0.1"
+                          value={editFormData.weight_kg || ''}
+                          onChange={(e) => handleEditChange('weight_kg', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Profil Sportif */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-green-700 flex items-center gap-2">
+                      <span className="text-xl">⚽</span>
+                      Profil Sportif
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_licence_id">Licence ID</Label>
+                        <Input
+                          id="edit_licence_id"
+                          value={editFormData.licence_id || ''}
+                          onChange={(e) => handleEditChange('licence_id', e.target.value)}
+                          placeholder="Ex: LIC123456"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_club">Club</Label>
+                        <Input
+                          id="edit_club"
+                          value={editFormData.club || ''}
+                          onChange={(e) => handleEditChange('club', e.target.value)}
+                          placeholder="Ex: Wydad AC"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Médical & Statut */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-purple-700 flex items-center gap-2">
+                      <span className="text-xl">🏥</span>
+                      Médical & Statut
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_current_status">Statut actuel</Label>
+                        <Select value={editFormData.current_status || ''} onValueChange={(value) => handleEditChange('current_status', value)}>
+                          <SelectTrigger id="edit_current_status">
+                            <SelectValue placeholder="Sélectionner..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Actif</SelectItem>
+                            <SelectItem value="injured">Blessé</SelectItem>
+                            <SelectItem value="recovering">En récupération</SelectItem>
+                            <SelectItem value="resting">Au repos</SelectItem>
+                            <SelectItem value="suspended">Suspendu</SelectItem>
+                            <SelectItem value="inactive">Inactif</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_allergies">Allergies</Label>
+                        <Textarea
+                          id="edit_allergies"
+                          value={editFormData.allergies || ''}
+                          onChange={(e) => handleEditChange('allergies', e.target.value)}
+                          placeholder="Décrivez les allergies connues..."
+                          rows={3}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_notes">Notes médicales</Label>
+                        <Textarea
+                          id="edit_notes"
+                          value={editFormData.notes || ''}
+                          onChange={(e) => handleEditChange('notes', e.target.value)}
+                          placeholder="Notes supplémentaires..."
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="flex justify-between items-center">
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      onClick={() => {
+                        setEditDialogOpen(false)
+                        setDeleteDialogOpen(true)
+                      }}
+                      disabled={editLoading}
+                      className="mr-auto gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Supprimer
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} disabled={editLoading}>
+                        Annuler
+                      </Button>
+                      <Button type="submit" disabled={editLoading} className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
+                        {editLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Dialogue de confirmation de suppression */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-5 w-5" />
+                    Supprimer le joueur ?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Êtes-vous sûr de vouloir supprimer <span className="font-semibold">{player?.first_name} {player?.last_name}</span> ?
+                    <br />
+                    <span className="text-destructive font-semibold">Cette action est irréversible.</span>
+                    <br />
+                    Toutes les données associées (visites, certificats, attachements) seront également supprimées.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteLoading}>Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    disabled={deleteLoading}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    {deleteLoading ? 'Suppression...' : 'Oui, supprimer'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Dialogue d'upload de fichier */}
+            <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl flex items-center gap-2">
+                    <Paperclip className="h-6 w-6" />
+                    Ajouter une pièce jointe
+                  </DialogTitle>
+                  <DialogDescription>
+                    Ajoutez un fichier pour {player?.first_name} {player?.last_name}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {uploadDialogOpen && (
+                    <FileUpload
+                      entityType="player"
+                      entityId={id}
+                      onUploadSuccess={handleUploadSuccess}
+                      showTitle={false}
+                    />
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+                    Fermer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Dialogue de prévisualisation de fichier */}
+      <FilePreviewDialog 
+        file={previewFile}
+        open={showPreview}
+        onOpenChange={setShowPreview}
+      />
           </main>
         </div>
       </div>

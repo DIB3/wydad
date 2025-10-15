@@ -81,7 +81,6 @@ export function CertificateQuickEditDialog({ open, onOpenChange, playerId, curre
         created_by: user.id
       }
 
-      console.log('📤 Envoi des données du certificat:', certificateData)
       await certificateService.create(certificateData)
       toast.success('État d\'aptitude mis à jour avec succès')
       onSuccess?.()

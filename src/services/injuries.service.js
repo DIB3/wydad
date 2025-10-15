@@ -45,6 +45,7 @@ const injuriesService = {
 
   async getByPlayerId(playerId) {
     const response = await api.get('/visits')
+    
     const visits = response.data.filter(visit => 
       visit.player_id === playerId && visit.module === 'injury'
     )
@@ -55,7 +56,6 @@ const injuriesService = {
         const injury = await this.getByVisitId(visit.id)
         injuryData.push({ ...injury, visit })
       } catch (error) {
-        // Visite sans blessure, on ignore
       }
     }
     

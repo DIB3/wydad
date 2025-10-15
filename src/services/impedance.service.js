@@ -45,6 +45,7 @@ const impedanceService = {
 
   async getByPlayerId(playerId) {
     const response = await api.get('/visits')
+    
     const visits = response.data.filter(visit => 
       visit.player_id === playerId && visit.module === 'impedance'
     )
@@ -55,7 +56,6 @@ const impedanceService = {
         const impedance = await this.getByVisitId(visit.id)
         impedanceData.push({ ...impedance, visit })
       } catch (error) {
-        // Visite sans impédance, on ignore
       }
     }
     

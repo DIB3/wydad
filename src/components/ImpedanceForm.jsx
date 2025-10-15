@@ -5,8 +5,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ModernFormField } from '@/components/ModernFormField'
-import { Save, TrendingUp, Scale, Activity, Zap, Droplet, Ruler, Weight, ArrowRight, Move, Paperclip } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
+import { Save, TrendingUp, Scale, Activity, Zap, Droplet, Ruler, Weight, ArrowRight, Move, Paperclip, PieChart } from 'lucide-react'
+import { 
+  PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+} from 'recharts'
 import impedanceService from '../services/impedance.service'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
@@ -15,18 +19,6 @@ import { FileList } from './FileList'
 import { handleModuleNavigation, getModuleProgress } from '../utils/moduleNavigation'
 import { useFormPersistence } from '../hooks/useFormPersistence'
 import { ModuleProgressIndicator } from './ModuleProgressIndicator'
-
-const imcHistoryData = [
-  { date: 'Jan', value: 22.5 },
-  { date: 'Fév', value: 22.7 },
-  { date: 'Mar', value: 22.6 },
-  { date: 'Avr', value: 22.8 },
-]
-
-const bodyCompositionData = [
-  { name: 'Masse grasse', value: 12, fill: 'url(#massGrasseGradient)' },
-  { name: 'Masse maigre', value: 88, fill: 'url(#massMaigreGradient)' },
-]
 
 export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModuleIndex }) {
   const navigate = useNavigate()
@@ -41,12 +33,12 @@ export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModule
     const fetchExistingImpedance = async () => {
       if (visitId) {
         try {
-          console.log('🔍 Chargement des données Impédance existantes pour visitId:', visitId)
           const impedanceData = await impedanceService.getByVisitId(visitId)
           
           if (impedanceData && Object.keys(impedanceData).length > 0) {
-            console.log('✅ Données Impédance trouvées:', impedanceData)
-            setFormData({
+            setFormData(prevData => ({
+              ...prevData,
+              measurement_date: impedanceData.measurement_date || '',
               device: impedanceData.device || '',
               height_cm: impedanceData.height_cm || '',
               weight_kg: impedanceData.weight_kg || '',
@@ -67,7 +59,7 @@ export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModule
               fat_mass_limbs_percent: impedanceData.fat_mass_limbs_percent || '',
               impedance_kohm: impedanceData.impedance_kohm || '',
               notes: impedanceData.notes || ''
-            })
+            }))
             toast.success('Données Impédance chargées avec succès')
           }
         } catch (error) {
@@ -82,6 +74,7 @@ export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModule
   }, [visitId])
 
   const [formData, setFormData] = useState({
+    measurement_date: '',
     device: '',
     height_cm: '',
     weight_kg: '',
@@ -213,6 +206,151 @@ export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModule
     }
   }
 
+  // Fonctions pour générer les données des graphiques dynamiquement
+  const getBodyCompositionData = () => {
+    const data = []
+    
+    if (formData.body_fat_percent) {
+      data.push({
+        name: 'Masse grasse',
+        value: parseFloat(formData.body_fat_percent),
+        color: '#ef4444'
+      })
+    }
+    
+    if (formData.lean_mass_kg && formData.weight_kg) {
+      const leanPercent = (parseFloat(formData.lean_mass_kg) / parseFloat(formData.weight_kg)) * 100
+      data.push({
+        name: 'Masse maigre',
+        value: parseFloat(leanPercent.toFixed(1)),
+        color: '#3b82f6'
+      })
+    }
+    
+    if (formData.muscle_mass_kg && formData.weight_kg) {
+      const musclePercent = (parseFloat(formData.muscle_mass_kg) / parseFloat(formData.weight_kg)) * 100
+      data.push({
+        name: 'Masse musculaire',
+        value: parseFloat(musclePercent.toFixed(1)),
+        color: '#10b981'
+      })
+    }
+    
+    if (formData.bone_mass_kg && formData.weight_kg) {
+      const bonePercent = (parseFloat(formData.bone_mass_kg) / parseFloat(formData.weight_kg)) * 100
+      data.push({
+        name: 'Masse osseuse',
+        value: parseFloat(bonePercent.toFixed(1)),
+        color: '#f59e0b'
+      })
+    }
+    
+    return data
+  }
+
+  const getWaterDistributionData = () => {
+    const data = []
+    
+    if (formData.tbw_l) {
+      data.push({
+        compartiment: 'Eau totale',
+        valeur: parseFloat(formData.tbw_l),
+        reference: 'L'
+      })
+    }
+    
+    if (formData.icw_l) {
+      data.push({
+        compartiment: 'Eau intracellulaire',
+        valeur: parseFloat(formData.icw_l),
+        reference: 'L'
+      })
+    }
+    
+    if (formData.ecw_l) {
+      data.push({
+        compartiment: 'Eau extracellulaire',
+        valeur: parseFloat(formData.ecw_l),
+        reference: 'L'
+      })
+    }
+    
+    if (formData.hydration_percent) {
+      data.push({
+        compartiment: 'Hydratation',
+        valeur: parseFloat(formData.hydration_percent),
+        reference: '%'
+      })
+    }
+    
+    return data
+  }
+
+  const getMetabolismRadarData = () => {
+    const data = []
+    
+    // IMC - Score basé sur les normes (18.5-24.9 optimal)
+    if (formData.bmi) {
+      const bmiValue = parseFloat(formData.bmi)
+      const bmiScore = bmiValue >= 18.5 && bmiValue <= 24.9 ? 100 : 
+                       Math.max(0, 100 - Math.abs(bmiValue - 21.7) * 10)
+      data.push({ axe: 'IMC', value: Math.min(bmiScore, 100), fullMark: 100 })
+    }
+    
+    // Masse grasse (optimal: 10-15% pour hommes sportifs)
+    if (formData.body_fat_percent) {
+      const fatValue = parseFloat(formData.body_fat_percent)
+      const fatScore = fatValue >= 8 && fatValue <= 15 ? 100 : 
+                       Math.max(0, 100 - Math.abs(fatValue - 12) * 5)
+      data.push({ axe: 'Masse grasse', value: Math.min(fatScore, 100), fullMark: 100 })
+    }
+    
+    // Angle de phase (optimal: >6°)
+    if (formData.phase_angle_deg) {
+      const phaseValue = parseFloat(formData.phase_angle_deg)
+      const phaseScore = (phaseValue / 8) * 100
+      data.push({ axe: 'Angle de phase', value: Math.min(phaseScore, 100), fullMark: 100 })
+    }
+    
+    // Indice de graisse viscérale (optimal: <10)
+    if (formData.visceral_fat_index) {
+      const visceralValue = parseFloat(formData.visceral_fat_index)
+      const visceralScore = Math.max(0, 100 - (visceralValue * 10))
+      data.push({ axe: 'Graisse viscérale', value: Math.min(visceralScore, 100), fullMark: 100 })
+    }
+    
+    // Métabolisme basal (score relatif au poids)
+    if (formData.basal_metabolism_kcal && formData.weight_kg) {
+      const metabolismRate = parseFloat(formData.basal_metabolism_kcal) / parseFloat(formData.weight_kg)
+      const metabolismScore = (metabolismRate / 25) * 100
+      data.push({ axe: 'Métabolisme', value: Math.min(metabolismScore, 100), fullMark: 100 })
+    }
+    
+    return data
+  }
+
+  const getFatDistributionData = () => {
+    const data = []
+    
+    if (formData.fat_mass_trunk_percent) {
+      data.push({
+        zone: 'Tronc',
+        pourcentage: parseFloat(formData.fat_mass_trunk_percent)
+      })
+    }
+    
+    if (formData.fat_mass_limbs_percent) {
+      data.push({
+        zone: 'Membres',
+        pourcentage: parseFloat(formData.fat_mass_limbs_percent)
+      })
+    }
+    
+    return data
+  }
+
+  const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+
   return (
     <form className="space-y-6">
       {/* Indicateur de progression multi-modules */}
@@ -258,6 +396,8 @@ export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModule
               <Input 
                 id="measure-date" 
                 type="date" 
+                value={formData.measurement_date}
+                onChange={(e) => handleChange('measurement_date', e.target.value)}
                 className="h-12 border-2 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all"
                 required 
               />
@@ -367,94 +507,422 @@ export function ImpedanceForm({ visitId, playerId, moduleSequence, currentModule
         </CardContent>
       </Card>
 
-      {/* Charts */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
-              Évolution IMC
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={imcHistoryData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" className="text-xs" />
-                <YAxis domain={[22, 23.5]} className="text-xs" />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-pink-500 to-rose-500" />
-          <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 text-white">
-                <Activity className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Composition corporelle</CardTitle>
-                <CardDescription>Répartition masse grasse et masse maigre</CardDescription>
-              </div>
+      {/* Eau corporelle */}
+      <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+        <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+              <Droplet className="h-5 w-5" />
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={bodyCompositionData}>
-                <defs>
-                  <linearGradient id="massGrasseGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ec4899" stopOpacity={0.9}/>
-                    <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.7}/>
-                  </linearGradient>
-                  <linearGradient id="massMaigreGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#a855f7" stopOpacity={0.9}/>
-                    <stop offset="100%" stopColor="#d946ef" stopOpacity={0.7}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
-                <XAxis 
-                  dataKey="name" 
-                  className="text-xs font-medium" 
-                  stroke="#64748b"
-                  tick={{ fill: '#475569' }}
-                />
-                <YAxis 
-                  className="text-xs" 
-                  stroke="#64748b"
-                  tick={{ fill: '#475569' }}
-                  label={{ value: 'Pourcentage (%)', angle: -90, position: 'insideLeft', style: { fill: '#475569', fontSize: 12 } }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                    borderRadius: '12px',
-                    border: '2px solid #ec4899',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
-                    padding: '12px'
-                  }}
-                  labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}
-                  formatter={(value, name) => [`${value}%`, name]}
-                  cursor={{ fill: 'rgba(236, 72, 153, 0.1)' }}
-                />
-                <Bar 
-                  dataKey="value"
-                  radius={[12, 12, 0, 0]}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
-                >
-                  {bodyCompositionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+            <div>
+              <CardTitle>Eau corporelle</CardTitle>
+              <CardDescription>Distribution hydrique et hydratation</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 p-6">
+          <ModernFormField 
+            label="Eau totale" 
+            icon={Droplet}
+            id="tbw" 
+            unit="L" 
+            placeholder="45.2" 
+            gradient="from-cyan-500 to-blue-500"
+            value={formData.tbw_l}
+            onChange={(e) => handleChange('tbw_l', e.target.value)}
+            step="0.1" 
+          />
+          <ModernFormField 
+            label="Eau intracellulaire" 
+            icon={Droplet}
+            id="icw" 
+            unit="L" 
+            placeholder="28.5" 
+            gradient="from-blue-500 to-indigo-500"
+            value={formData.icw_l}
+            onChange={(e) => handleChange('icw_l', e.target.value)}
+            step="0.1" 
+          />
+          <ModernFormField 
+            label="Eau extracellulaire" 
+            icon={Droplet}
+            id="ecw" 
+            unit="L" 
+            placeholder="16.7" 
+            gradient="from-indigo-500 to-purple-500"
+            value={formData.ecw_l}
+            onChange={(e) => handleChange('ecw_l', e.target.value)}
+            step="0.1" 
+          />
+          <ModernFormField 
+            label="Hydratation" 
+            icon={Droplet}
+            id="hydration" 
+            unit="%" 
+            placeholder="61.2" 
+            gradient="from-purple-500 to-pink-500"
+            value={formData.hydration_percent}
+            onChange={(e) => handleChange('hydration_percent', e.target.value)}
+            step="0.1" 
+          />
+        </CardContent>
+      </Card>
+
+      {/* Métabolisme et paramètres avancés */}
+      <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-red-500" />
+        <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
+              <Zap className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle>Métabolisme et paramètres avancés</CardTitle>
+              <CardDescription>Angle de phase, métabolisme et répartition graisseuse</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6 p-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <ModernFormField 
+              label="Angle de phase" 
+              icon={Zap}
+              id="phase-angle" 
+              unit="°" 
+              placeholder="6.8" 
+              gradient="from-orange-500 to-red-500"
+              value={formData.phase_angle_deg}
+              onChange={(e) => handleChange('phase_angle_deg', e.target.value)}
+              step="0.1" 
+            />
+            <ModernFormField 
+              label="Graisse viscérale" 
+              icon={TrendingUp}
+              id="visceral-fat" 
+              unit="index" 
+              placeholder="8" 
+              gradient="from-red-500 to-pink-500"
+              value={formData.visceral_fat_index}
+              onChange={(e) => handleChange('visceral_fat_index', e.target.value)}
+              step="0.1" 
+            />
+            <ModernFormField 
+              label="Métabolisme basal" 
+              icon={Activity}
+              id="basal-metabolism" 
+              unit="kcal" 
+              placeholder="1850" 
+              gradient="from-pink-500 to-purple-500"
+              value={formData.basal_metabolism_kcal}
+              onChange={(e) => handleChange('basal_metabolism_kcal', e.target.value)}
+            />
+            <ModernFormField 
+              label="Âge métabolique" 
+              icon={TrendingUp}
+              id="metabolic-age" 
+              unit="ans" 
+              placeholder="24" 
+              gradient="from-purple-500 to-indigo-500"
+              value={formData.metabolic_age_years}
+              onChange={(e) => handleChange('metabolic_age_years', e.target.value)}
+            />
+            <ModernFormField 
+              label="Graisse tronc" 
+              icon={Move}
+              id="fat-trunk" 
+              unit="%" 
+              placeholder="8.5" 
+              gradient="from-indigo-500 to-blue-500"
+              value={formData.fat_mass_trunk_percent}
+              onChange={(e) => handleChange('fat_mass_trunk_percent', e.target.value)}
+              step="0.1" 
+            />
+            <ModernFormField 
+              label="Graisse membres" 
+              icon={Move}
+              id="fat-limbs" 
+              unit="%" 
+              placeholder="6.2" 
+              gradient="from-blue-500 to-cyan-500"
+              value={formData.fat_mass_limbs_percent}
+              onChange={(e) => handleChange('fat_mass_limbs_percent', e.target.value)}
+              step="0.1" 
+            />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <ModernFormField 
+              label="Impédance" 
+              icon={Zap}
+              id="impedance" 
+              unit="kΩ" 
+              placeholder="485" 
+              gradient="from-cyan-500 to-teal-500"
+              value={formData.impedance_kohm}
+              onChange={(e) => handleChange('impedance_kohm', e.target.value)}
+              step="0.1" 
+            />
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-sm font-semibold text-slate-700">
+                Notes et observations
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Observations particulières sur les mesures..."
+                value={formData.notes}
+                onChange={(e) => handleChange('notes', e.target.value)}
+                rows={3}
+                className="border-2 focus:border-teal-500 focus:ring-teal-500/20 rounded-xl transition-all resize-none"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Graphiques dynamiques en temps réel */}
+      {(getBodyCompositionData().length > 0 || getWaterDistributionData().length > 0 || getMetabolismRadarData().length > 0 || getFatDistributionData().length > 0) && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 pt-4">
+            <PieChart className="h-6 w-6 text-purple-600" />
+            <h2 className="text-2xl font-bold text-slate-800">Analyses en temps réel</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Composition corporelle (Pie Chart) */}
+            {getBodyCompositionData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-pink-500 to-rose-500" />
+                <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 text-white">
+                      <PieChart className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Composition corporelle</CardTitle>
+                      <CardDescription>Répartition des masses en temps réel</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={getBodyCompositionData()}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        innerRadius={40}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="#fff"
+                        strokeWidth={2}
+                      >
+                        {getBodyCompositionData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #ec4899',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value.toFixed(1)}%`, 'Pourcentage']}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: '600' }}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Distribution de l'eau (Bar Chart) */}
+            {getWaterDistributionData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-blue-500" />
+                <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
+                      <Droplet className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Distribution hydrique</CardTitle>
+                      <CardDescription>Compartiments hydriques corporels</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getWaterDistributionData()}>
+                      <defs>
+                        <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="compartiment" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #06b6d4',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value, name, props) => [
+                          `${value} ${props.payload.reference}`, 
+                          props.payload.compartiment
+                        ]}
+                      />
+                      <Bar 
+                        dataKey="valeur" 
+                        fill="url(#waterGradient)"
+                        radius={[8, 8, 0, 0]}
+                        name="Valeur"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Profil métabolique (Radar) */}
+            {getMetabolismRadarData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-orange-500 to-red-500" />
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Profil métabolique</CardTitle>
+                      <CardDescription>Score de santé métabolique global</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={getMetabolismRadarData()}>
+                      <PolarGrid stroke="#e2e8f0" strokeWidth={2} />
+                      <PolarAngleAxis 
+                        dataKey="axe" 
+                        tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <PolarRadiusAxis 
+                        angle={90} 
+                        domain={[0, 100]} 
+                        tick={{ fill: '#64748b', fontSize: 10 }}
+                      />
+                      <Radar 
+                        name="Score" 
+                        dataKey="value" 
+                        stroke="#f97316" 
+                        fill="#f97316" 
+                        fillOpacity={0.5}
+                        strokeWidth={3}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #f97316',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value.toFixed(1)}%`, 'Score']}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Répartition graisseuse */}
+            {getFatDistributionData().length > 0 && (
+              <Card className="shadow-lg border-none backdrop-blur-sm bg-white/80 overflow-hidden">
+                <div className="h-1 w-full bg-gradient-to-r from-violet-500 to-purple-500" />
+                <CardHeader className="bg-gradient-to-r from-violet-50 to-purple-50">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 text-white">
+                      <Move className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Répartition graisseuse</CardTitle>
+                      <CardDescription>Distribution de la masse grasse par zone</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getFatDistributionData()} layout="vertical">
+                      <defs>
+                        <linearGradient id="fatGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#a855f7" stopOpacity={0.9}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        type="number" 
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                      />
+                      <YAxis 
+                        dataKey="zone" 
+                        type="category" 
+                        width={80} 
+                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                          borderRadius: '12px',
+                          border: '2px solid #8b5cf6',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          padding: '12px'
+                        }}
+                        formatter={(value) => [`${value.toFixed(1)}%`, 'Graisse']}
+                      />
+                      <Bar 
+                        dataKey="pourcentage" 
+                        fill="url(#fatGradient)"
+                        radius={[0, 8, 8, 0]}
+                        name="Pourcentage de graisse"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-center text-slate-600 mt-4">
+                    ✨ Graphique mis à jour en temps réel avec vos données
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Documents et pièces jointes */}
       {visitId && (

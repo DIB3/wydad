@@ -30,8 +30,8 @@ const careService = {
   },
 
   async getByPlayerId(playerId) {
-    const allCares = await this.getAll()
-    return allCares.filter(care => care.visit?.player_id === playerId)
+    const response = await api.get(`/visit_care/player/${playerId}`)
+    return response.data
   }
 }
 

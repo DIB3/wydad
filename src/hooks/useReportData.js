@@ -88,7 +88,6 @@ export function useReportData(playerId = null, startDate = null, endDate = null)
     if (!socket || typeof socket.on !== 'function') return
 
     const handleUpdate = () => {
-      console.log('📊 Mise à jour des rapports en temps réel...')
       fetchAllData()
     }
 

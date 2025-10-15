@@ -45,6 +45,7 @@ const gpsService = {
 
   async getByPlayerId(playerId) {
     const response = await api.get('/visits')
+    
     const visits = response.data.filter(visit => 
       visit.player_id === playerId && visit.module === 'gps'
     )
@@ -55,7 +56,6 @@ const gpsService = {
         const gps = await this.getByVisitId(visit.id)
         gpsData.push({ ...gps, visit })
       } catch (error) {
-        // Visite sans GPS, on ignore
       }
     }
     
