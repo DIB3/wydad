@@ -59,6 +59,5 @@ app.use('/meal_types', mealTypeRoutes);
 app.use('/meal_items', mealItemRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-sequelize.sync().then(() => console.log('DB OK'));
 
 module.exports = app;

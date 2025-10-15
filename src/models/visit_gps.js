@@ -13,23 +13,74 @@ const VisitGPS = sequelize.define('VisitGPS', {
     allowNull: false,
     unique: true,
   },
-  session_date: DataTypes.DATEONLY,
-  session_type: DataTypes.STRING,
-  surface: DataTypes.STRING,
-  duration_min: DataTypes.DECIMAL(6,2),
-  distance_m: DataTypes.INTEGER,
-  hid_m: DataTypes.INTEGER,
-  hsd_m: DataTypes.INTEGER,
-  vmax_kmh: DataTypes.DECIMAL(5,2),
-  sprints_count: DataTypes.INTEGER,
-  acc_gt3_count: DataTypes.INTEGER,
-  decel_hard_count: DataTypes.INTEGER,
-  player_load: DataTypes.DECIMAL(7,2),
-  avg_speed_kmh: DataTypes.DECIMAL(5,2),
-  max_heart_rate_bpm: DataTypes.INTEGER,
-  avg_heart_rate_bpm: DataTypes.INTEGER,
-  recovery_index: DataTypes.DECIMAL(5,2),
-  notes: DataTypes.TEXT,
+  session_date: {
+    type: DataTypes.DATEONLY,
+    defaultValue: null,
+  },
+  session_type: {
+    type: DataTypes.STRING,
+    defaultValue: 'training',
+  },
+  surface: {
+    type: DataTypes.STRING,
+    defaultValue: 'grass',
+  },
+  duration_min: {
+    type: DataTypes.DECIMAL(8,2),
+    defaultValue: 0,
+  },
+  distance_m: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  hid_m: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  hsd_m: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  vmax_kmh: {
+    type: DataTypes.DECIMAL(8,2),
+    defaultValue: 0,
+  },
+  sprints_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  acc_gt3_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  decel_hard_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  player_load: {
+    type: DataTypes.DECIMAL(10,2),
+    defaultValue: 0,
+  },
+  avg_speed_kmh: {
+    type: DataTypes.DECIMAL(8,2),
+    defaultValue: 0,
+  },
+  max_heart_rate_bpm: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  avg_heart_rate_bpm: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  recovery_index: {
+    type: DataTypes.DECIMAL(8,2),
+    defaultValue: 0,
+  },
+  notes: {
+    type: DataTypes.TEXT,
+    defaultValue: '',
+  },
 }, {
   tableName: 'visit_gps',
   timestamps: false,

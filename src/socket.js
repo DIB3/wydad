@@ -3,21 +3,17 @@ let io;
 function initSocket(server) {
   io = socketio(server, { cors: { origin: '*' } });
   io.on('connection', (socket) => {
-    console.log('Client connecté:', socket.id);
     
     // Rejoindre une room par joueur
     socket.on('joinPlayer', (playerId) => {
       socket.join(`player_${playerId}`)
-      console.log(`Socket ${socket.id} a rejoint la room player_${playerId}`)
     });
     
     // Rejoindre une room par utilisateur (pour les notifications)
     socket.on('joinUser', (userId) => {
       socket.join(`user_${userId}`)
-      console.log(`Socket ${socket.id} a rejoint la room user_${userId}`)
     });
     
-    socket.on('disconnect', () => console.log('Déconnecté:', socket.id));
   });
 }
 // Exemples d'émission d'événements temps réel

@@ -1,4 +1,5 @@
 const VisitCare = require('../models/visit_care');
+const Visit = require('../models/visit');
 const { emitModuleCreated, emitModuleUpdated, emitModuleDeleted } = require('../socket');
 
 exports.create = async (req, res) => {
@@ -54,6 +55,30 @@ exports.delete = async (req, res) => {
     emitModuleDeleted('visit_care', { id: care.id });
     res.json({ message: 'Soins supprimés' });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getByPlayerId = async (req, res) => {
+  try {
+    
+    // Récupérer d'abord toutes les visites du joueur
+    const visits = await Visit.findAll({
+      where: { player_id: req.params.playerId },
+      attributes: ['id']
+    });
+    
+    const visitIds = visits.map(v => v.id);
+    
+    // Puis récupérer les care pour ces visites
+    const cares = await VisitCare.findAll({
+      where: { visit_id: visitIds },
+      order: [['care_date', 'DESC']]
+    });
+    
+    res.json(cares);
+  } catch (err) {
+    console.error('❌ Erreur getByPlayerId care:', err);
     res.status(500).json({ error: err.message });
   }
 };

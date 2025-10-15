@@ -19,6 +19,8 @@ const Attachment = sequelize.define('Attachment', {
       'visit_injury',
       'visit_nutrition',
       'visit_care',
+      'visit_soins',
+      'visit_examen_medical',
       'medical_certificate',
       'injury_exam',
       'injury_intervention'
@@ -75,6 +77,21 @@ const Attachment = sequelize.define('Attachment', {
       // Catégories impédance
       'impedance_report',
       'body_scan',
+      
+      // Catégories soins
+      'treatment_protocol',
+      'follow_up_report',
+      'treatment_photo',
+      
+      // Catégories care (soins et récupération)
+      'care_protocol',
+      'care_report',
+      'recovery_plan',
+      
+      // Catégories examen médical
+      'exam_results',
+      'medical_report',
+      'lab_results',
       
       // Catégories certificats
       'certificate',

@@ -41,30 +41,36 @@ const VisitSoins = sequelize.define('VisitSoins', {
   type_soin: {
     type: DataTypes.STRING(80),
     allowNull: true,
+    defaultValue: 'autre',
     comment: 'pansement, massage, reeducation, injection, cryotherapie, electrostimulation, infiltration, autre'
   },
   zone_concernee: {
     type: DataTypes.STRING(80),
     allowNull: true,
+    defaultValue: '',
     comment: 'tete, cou, epaule, bras, avant_bras, cuisse, genou, cheville, pied, dos, autre'
   },
   description: {
     type: DataTypes.TEXT,
     allowNull: true,
+    defaultValue: '',
     comment: 'Détails du soin effectué'
   },
   produits_utilises: {
     type: DataTypes.TEXT,
     allowNull: true,
+    defaultValue: '',
     comment: 'Médicaments, matériels utilisés'
   },
   resultat: {
     type: DataTypes.ENUM('amelioration', 'stable', 'deterioration'),
-    allowNull: true
+    allowNull: true,
+    defaultValue: null
   },
   recommandations: {
     type: DataTypes.TEXT,
     allowNull: true,
+    defaultValue: '',
     comment: 'Suivi ou repos'
   },
   document_path: {

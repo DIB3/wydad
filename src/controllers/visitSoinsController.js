@@ -3,11 +3,26 @@ const { emitModuleCreated, emitModuleUpdated, emitModuleDeleted } = require('../
 
 exports.create = async (req, res) => {
   try {
+    
+    // Validation des champs requis
+    if (!req.body.visit_id) {
+      console.error('❌ visit_id manquant');
+      return res.status(400).json({ error: 'visit_id est requis' });
+    }
+    
+    if (!req.body.player_id) {
+      console.error('❌ player_id manquant');
+      return res.status(400).json({ error: 'player_id est requis' });
+    }
+    
     const soin = await VisitSoins.create(req.body);
+    
     emitModuleCreated('visit_soins', soin);
     res.status(201).json(soin);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error('❌ Erreur création visit_soins:', err.message);
+    console.error('📋 Détails complets:', err);
+    res.status(400).json({ error: err.message, details: err.errors });
   }
 };
 
@@ -34,13 +49,17 @@ exports.getAll = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
+    
     const soin = await VisitSoins.findOne({ where: { visit_id: req.params.visitId } });
     if (!soin) return res.status(404).json({ error: 'Soin non trouvé' });
+    
     await soin.update(req.body);
+    
     emitModuleUpdated('visit_soins', soin);
     res.json({ message: 'Soin mis à jour' });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error('❌ Erreur mise à jour visit_soins:', err.message);
+    res.status(400).json({ error: err.message, details: err.errors });
   }
 };
 

@@ -2,8 +2,13 @@ const express = require('express');
 const router = express.Router();
 const attachmentController = require('../controllers/attachmentController');
 const auth = require('../middlewares/auth');
+const optionalAuth = require('../middlewares/optionalAuth');
 
-// Toutes les routes nécessitent l'authentification
+// Routes avec authentification OPTIONNELLE (pour permettre window.open)
+router.get('/:id/download', optionalAuth, attachmentController.downloadAttachment);
+router.get('/:id/view', optionalAuth, attachmentController.viewAttachment);
+
+// Routes PROTÉGÉES (authentification obligatoire)
 router.use(auth);
 
 // Upload d'une pièce jointe
@@ -17,12 +22,6 @@ router.get('/entity/:entity_type/:entity_id', attachmentController.getAttachment
 
 // Récupération d'une pièce jointe par ID
 router.get('/:id', attachmentController.getAttachmentById);
-
-// Téléchargement d'un fichier
-router.get('/:id/download', attachmentController.downloadAttachment);
-
-// Affichage d'un fichier (inline)
-router.get('/:id/view', attachmentController.viewAttachment);
 
 // Mise à jour des métadonnées
 router.put('/:id', attachmentController.updateAttachment);

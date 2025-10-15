@@ -15,7 +15,6 @@ exports.getStats = async (req, res) => {
   try {
     const { player_id, start_date, end_date } = req.query;
     
-    console.log('📊 getStats called with:', { player_id, start_date, end_date });
     
     const whereClause = {};
     if (player_id) whereClause.player_id = player_id;
@@ -107,7 +106,6 @@ exports.getVisitsEvolution = async (req, res) => {
   try {
     const { player_id, months = 6 } = req.query;
     
-    console.log('📊 getVisitsEvolution called with:', { player_id, months });
     
     const monthsAgo = new Date();
     monthsAgo.setMonth(monthsAgo.getMonth() - parseInt(months));
@@ -130,7 +128,6 @@ exports.getVisitsEvolution = async (req, res) => {
       raw: true
     });
 
-    console.log(`Found ${visits.length} monthly data points`);
 
     // Formater les résultats
     const result = visits.map(v => ({
@@ -150,7 +147,6 @@ exports.getVisitsByModule = async (req, res) => {
   try {
     const { player_id, start_date, end_date } = req.query;
     
-    console.log('📊 getVisitsByModule called with:', { player_id, start_date, end_date });
     
     const whereClause = {};
     if (player_id) whereClause.player_id = player_id;
@@ -170,7 +166,6 @@ exports.getVisitsByModule = async (req, res) => {
       raw: true
     });
 
-    console.log(`Found ${visits.length} module groups`);
 
     const result = visits.map(v => ({
       module: v.module,
@@ -195,7 +190,6 @@ exports.getStatusDistribution = async (req, res) => {
   try {
     const { player_id } = req.query;
     
-    console.log('📊 getStatusDistribution called with:', { player_id });
     
     const whereClause = {};
     if (player_id) whereClause.player_id = player_id;
@@ -213,7 +207,6 @@ exports.getStatusDistribution = async (req, res) => {
       return [];
     });
 
-    console.log(`Found ${statuses.length} status groups`);
 
     const result = statuses.map(s => ({
       status: s.status,
@@ -232,7 +225,6 @@ exports.getInjuriesEvolution = async (req, res) => {
   try {
     const { player_id, months = 6 } = req.query;
     
-    console.log('📊 getInjuriesEvolution called with:', { player_id, months });
     
     const monthsAgo = new Date();
     monthsAgo.setMonth(monthsAgo.getMonth() - parseInt(months));
@@ -249,7 +241,6 @@ exports.getInjuriesEvolution = async (req, res) => {
       order: [['visit_date', 'ASC']]
     });
 
-    console.log(`Found ${visits.length} injury visits`);
 
     // Grouper par mois
     const monthlyData = {};
@@ -275,7 +266,6 @@ exports.getImpedanceData = async (req, res) => {
   try {
     const { player_id, months = 6 } = req.query;
     
-    console.log('📊 getImpedanceData called with:', { player_id, months });
     
     // Si pas de player_id, calculer la moyenne de tous les joueurs
     if (!player_id) {
@@ -330,7 +320,6 @@ exports.getGPSData = async (req, res) => {
   try {
     const { player_id, weeks = 8 } = req.query;
     
-    console.log('📊 getGPSData called with:', { player_id, weeks });
     
     // Si pas de player_id, calculer la moyenne de tous les joueurs
     if (!player_id) {
@@ -533,7 +522,6 @@ exports.getAverageIMC = async (req, res) => {
   try {
     const { player_id, months = 6 } = req.query;
     
-    console.log('📊 getAverageIMC called with:', { player_id, months });
     
     const monthsAgo = new Date();
     monthsAgo.setMonth(monthsAgo.getMonth() - parseInt(months));
@@ -597,7 +585,6 @@ exports.getPerformanceRadar = async (req, res) => {
   try {
     const { player_id } = req.query;
     
-    console.log('📊 getPerformanceRadar called with:', { player_id });
     
     // Récupérer les dernières données de chaque module
     const whereClause = player_id ? { player_id } : {};
@@ -680,7 +667,6 @@ exports.getCertificatesExpiry = async (req, res) => {
   try {
     const { player_id } = req.query;
     
-    console.log('📊 getCertificatesExpiry called with:', { player_id });
     
     const now = new Date();
     const whereClause = player_id ? { player_id } : {};
@@ -753,7 +739,6 @@ exports.getGPSAverageAllPlayers = async (req, res) => {
   try {
     const { weeks = 8 } = req.query;
     
-    console.log('📊 getGPSAverageAllPlayers called with:', { weeks });
     
     const weeksAgo = new Date();
     weeksAgo.setDate(weeksAgo.getDate() - (parseInt(weeks) * 7));
@@ -826,7 +811,6 @@ exports.getImpedanceAverageAllPlayers = async (req, res) => {
   try {
     const { months = 6 } = req.query;
     
-    console.log('📊 getImpedanceAverageAllPlayers called with:', { months });
     
     const monthsAgo = new Date();
     monthsAgo.setMonth(monthsAgo.getMonth() - parseInt(months));
@@ -898,7 +882,6 @@ exports.getRecentVisits = async (req, res) => {
   try {
     const { player_id, limit = 5 } = req.query;
     
-    console.log('📊 getRecentVisits called with:', { player_id, limit });
     
     const whereClause = player_id ? { player_id } : {};
 

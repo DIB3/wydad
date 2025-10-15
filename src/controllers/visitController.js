@@ -5,11 +5,9 @@ const { emitVisitCreated, emitVisitUpdated, emitVisitDeleted, emitVisitValidated
 
 exports.create = async (req, res) => {
   try {
-    console.log('📝 Création de visite - Données reçues:', req.body);
     
     const visit = await Visit.create(req.body);
     
-    console.log('✅ Visite créée avec succès:', visit.id);
     
     emitVisitCreated(visit); // temps réel
     res.status(201).json(visit);

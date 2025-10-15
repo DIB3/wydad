@@ -4,7 +4,9 @@ const { emitModuleCreated, emitModuleUpdated, emitModuleDeleted } = require('../
 
 exports.create = async (req, res) => {
   try {
+    
     const gps = await VisitGPS.create(req.body);
+    
     
     // Récupérer la visite associée pour avoir le player_id
     const visit = await Visit.findByPk(gps.visit_id);
@@ -13,6 +15,8 @@ exports.create = async (req, res) => {
     emitModuleCreated('visit_gps', gpsWithVisit); // temps réel avec player_id
     res.status(201).json(gps);
   } catch (err) {
+    console.error('❌ [GPS Controller] Erreur création:', err.message);
+    console.error('❌ [GPS Controller] Stack:', err.stack);
     res.status(400).json({ error: err.message });
   }
 };

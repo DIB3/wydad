@@ -13,6 +13,10 @@ const VisitImpedance = sequelize.define('VisitImpedance', {
     allowNull: false,
     unique: true,
   },
+  measurement_date: {
+    type: DataTypes.DATEONLY,
+    defaultValue: null,
+  },
   device: DataTypes.STRING,
   height_cm: DataTypes.DECIMAL(5,2),
   weight_kg: DataTypes.DECIMAL(5,2),

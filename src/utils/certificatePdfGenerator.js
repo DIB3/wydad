@@ -1,6 +1,24 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
+
+// Convertir le logo WEBP en PNG si nécessaire
+function convertLogoToPNG() {
+  const logoWebpPath = path.join(__dirname, '..', 'assets', 'wac.webp');
+  const logoPngPath = path.join(__dirname, '..', 'assets', 'wac.png');
+
+  if (fs.existsSync(logoWebpPath) && !fs.existsSync(logoPngPath)) {
+    sharp(logoWebpPath)
+      .png()
+      .toFile(logoPngPath)
+      .then(() => console.log('✅ Logo converti en PNG'))
+      .catch(err => console.error('❌ Erreur conversion logo:', err));
+  }
+}
+
+// Convertir le logo au démarrage
+convertLogoToPNG();
 
 /**
  * Génère un certificat médical en PDF
@@ -27,7 +45,26 @@ function generateCertificatePdf(certificate, player, creator) {
   const textColor = '#333333';
   const lightGray = '#F5F5F5';
 
-  // En-tête avec logo et titre
+  // Ajouter le logo du Wydad en haut du certificat
+  const logoPngPath = path.join(__dirname, '..', 'assets', 'wac.png');
+  const logoWebpPath = path.join(__dirname, '..', 'assets', 'wac.webp');
+  
+  // Essayer d'utiliser le PNG, sinon le WEBP
+  const logoPath = fs.existsSync(logoPngPath) ? logoPngPath : logoWebpPath;
+  
+  if (fs.existsSync(logoPath)) {
+    try {
+      doc.image(logoPath, 250, 30, { 
+        width: 95,
+        align: 'center'
+      });
+      doc.moveDown(5);
+    } catch (error) {
+      console.error('Erreur lors du chargement du logo:', error);
+    }
+  }
+
+  // En-tête avec titre
   doc.fontSize(24)
      .fillColor(primaryColor)
      .font('Helvetica-Bold')

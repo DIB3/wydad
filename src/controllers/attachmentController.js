@@ -74,7 +74,6 @@ exports.uploadAttachment = async (req, res) => {
   try {
     const { entity_type, entity_id, category, description, metadata } = req.body;
 
-    console.log('📎 Upload attachment:', { entity_type, entity_id, category, file: req.file });
 
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
@@ -91,8 +90,7 @@ exports.uploadAttachment = async (req, res) => {
     // Création de l'URL d'accès
     const url = `/api/attachments/${req.file.filename}`;
 
-    // Création de l'enregistrement
-    const attachment = await Attachment.create({
+    const attachmentData = {
       entity_type,
       entity_id,
       category: category || 'general',
@@ -103,22 +101,22 @@ exports.uploadAttachment = async (req, res) => {
       url,
       size_bytes: req.file.size,
       sha256,
-      uploaded_by: req.user?.id,
-      description,
+      uploaded_by: req.user?.id || null,
+      description: description || '',
       metadata: metadata ? JSON.parse(metadata) : null,
       is_sensitive: true
-    });
+    };
 
-    // Récupération avec les relations
-    const attachmentWithUser = await Attachment.findByPk(attachment.id, {
-      include: [
-        { model: User, as: 'uploader', attributes: ['id', 'first_name', 'last_name', 'email'] }
-      ]
-    });
 
-    res.status(201).json(attachmentWithUser);
+    // Création de l'enregistrement
+    const attachment = await Attachment.create(attachmentData);
+
+    // Retourner l'attachment directement (sans include car association désactivée)
+    res.status(201).json(attachment);
   } catch (err) {
-    console.error('❌ Erreur upload attachment:', err);
+    console.error('❌ Erreur upload attachment:', err.message);
+    console.error('❌ Stack:', err.stack);
+    console.error('❌ Détails complets:', err);
     
     // Suppression du fichier en cas d'erreur
     if (req.file) {
@@ -129,7 +127,7 @@ exports.uploadAttachment = async (req, res) => {
       }
     }
 
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, details: err.errors });
   }
 };
 
@@ -138,8 +136,6 @@ exports.getAttachmentsByEntity = async (req, res) => {
   try {
     const { entity_type, entity_id } = req.params;
     const { category, include_deleted } = req.query;
-
-    console.log('📎 Get attachments:', { entity_type, entity_id, category });
 
     const where = {
       entity_type,
@@ -153,11 +149,6 @@ exports.getAttachmentsByEntity = async (req, res) => {
 
     const attachments = await Attachment.findAll({
       where,
-      // include désactivé car associations désactivées
-      // include: [
-      //   { model: User, as: 'uploader', attributes: ['id', 'first_name', 'last_name', 'email'] },
-      //   { model: User, as: 'deleter', attributes: ['id', 'first_name', 'last_name', 'email'] }
-      // ],
       order: [['created_at', 'DESC']]
     });
 
@@ -206,6 +197,7 @@ exports.downloadAttachment = async (req, res) => {
       return res.status(410).json({ error: 'Fichier supprimé' });
     }
 
+
     // Vérification de l'existence du fichier
     try {
       await fs.access(attachment.storage_path);
@@ -213,6 +205,11 @@ exports.downloadAttachment = async (req, res) => {
       return res.status(404).json({ error: 'Fichier physique non trouvé' });
     }
 
+    // Configuration des headers CORS pour le téléchargement
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
     // Envoi du fichier
     res.download(attachment.storage_path, attachment.original_filename);
   } catch (err) {
@@ -236,6 +233,7 @@ exports.viewAttachment = async (req, res) => {
       return res.status(410).json({ error: 'Fichier supprimé' });
     }
 
+
     // Vérification de l'existence du fichier
     try {
       await fs.access(attachment.storage_path);
@@ -243,7 +241,11 @@ exports.viewAttachment = async (req, res) => {
       return res.status(404).json({ error: 'Fichier physique non trouvé' });
     }
 
-    // Configuration du type de contenu
+    // Configuration des headers CORS pour permettre l'affichage dans l'interface
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Content-Type', attachment.mime_type);
     res.setHeader('Content-Disposition', `inline; filename="${attachment.original_filename}"`);
 
@@ -332,7 +334,6 @@ exports.hardDeleteAttachment = async (req, res) => {
     // Suppression du fichier physique
     try {
       await fs.unlink(attachment.storage_path);
-      console.log('✅ Fichier physique supprimé:', attachment.storage_path);
     } catch (err) {
       console.warn('⚠️ Fichier physique non trouvé ou déjà supprimé:', err.message);
     }
